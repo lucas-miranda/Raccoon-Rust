@@ -16,7 +16,7 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(window: &Window) -> Result<Self, &'static str> {
-        let hal_state = match HalState::new(&window.winit_window) {
+        let hal_state = match HalState::new(&window) {
             Ok(state) => state,
             Err(e) => panic!(e)
         };

@@ -95,17 +95,14 @@ use gfx_hal::{
     Surface
 };
 
-use winit::{
-    Window
-};
-
 use crate::{
     math::{
         Triangle
+    },
+    window::{
+        Window
     }
 };
-
-pub const WINDOW_NAME: &str = "Hello Clear";
 
 pub const VERTEX_SOURCE: &str = "#version 450
 layout (location = 0) in vec2 position;
@@ -152,8 +149,8 @@ pub struct HalState {
 
 impl HalState {
     pub fn new(window: &Window) -> Result<Self, &'static str> {
-        let instance = back::Instance::create(WINDOW_NAME, 1);
-        let mut surface = instance.create_surface(window);
+        let instance = back::Instance::create(window.get_title(), 1);
+        let mut surface = instance.create_surface(&window.winit_window);
 
         let adapter = instance
             .enumerate_adapters()
@@ -235,9 +232,10 @@ impl HalState {
 
             let extent = {
                 let window_client_area = window
+                    .winit_window
                     .get_inner_size()
                     .ok_or("Window doesn't exists")?
-                    .to_physical(window.get_hidpi_factor());
+                    .to_physical(window.winit_window.get_hidpi_factor());
 
                 Extent2D {
                     width: caps.extents.end.width.min(window_client_area.width as u32),
