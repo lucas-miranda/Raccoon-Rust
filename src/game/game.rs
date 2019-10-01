@@ -101,7 +101,11 @@ impl Game {
         let x = ((self.mouse_x / self.frame_width) * 2.0) - 1.0;
         let y = ((self.mouse_y / self.frame_height) * 2.0) - 1.0;
         let triangle = Triangle {
-            points: [[-0.5, 0.5], [-0.5, -0.5], [x as f32, y as f32]]
+            points: [
+                [-0.5, 0.5], 
+                [-0.5, -0.5], 
+                [x as f32, y as f32]
+            ]
         };
 
         renderer.draw_triangle_frame(triangle)

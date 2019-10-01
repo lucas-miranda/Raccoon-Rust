@@ -69,7 +69,7 @@ use gfx_hal::{
     },
     pso::{
         AttributeDesc, BakedStates, BasePipeline, BlendDesc, BlendOp, BlendState, ColorBlendDesc,
-        ColorMask, DepthStencilDesc, DepthTest, DescriptorSetLayoutBinding, Element, EntryPoint,
+        ColorMask, DepthStencilDesc, DepthTest, DescriptorSetLayoutBinding, ElemOffset, ElemStride, Element, EntryPoint,
         Face, Factor, FrontFace, GraphicsPipelineDesc, GraphicsShaderSet, InputAssemblerDesc,
         LogicOp, PipelineCreationFlags, PipelineStage, PolygonMode, Rasterizer, Rect,
         ShaderStageFlags, Specialization, StencilTest, VertexBufferDesc, Viewport
@@ -95,6 +95,8 @@ use gfx_hal::{
     Surface
 };
 
+use std::time::Instant;
+
 use crate::{
     math::{
         Triangle
@@ -109,6 +111,7 @@ static VERTEX_SOURCE: &'static str = include_str!("../resources/shaders/basic_sh
 static FRAGMENT_SOURCE: &'static str = include_str!("../resources/shaders/basic_shader.frag");
 
 pub struct HalState {
+    creation_instant: Instant,
     buffer: ManuallyDrop<<back::Backend as Backend>::Buffer>,
     memory: ManuallyDrop<<back::Backend as Backend>::Memory>,
     descriptor_set_layouts: Vec<<back::Backend as Backend>::DescriptorSetLayout>,
@@ -379,9 +382,9 @@ impl HalState {
         let (descriptor_set_layouts, pipeline_layout, graphics_pipeline) = Self::create_pipeline(&mut device, extent, &render_pass)?;
 
         let (buffer, memory, requirements) = unsafe {
-            const F32_XY_TRIANGLE: u64 = (size_of::<f32>() * 2 * 3) as u64;
+            const F32_XY_RGB_TRIANGLE: u64 = (size_of::<f32>() * (2 + 3) * 3) as u64;
             let mut buffer = device
-                .create_buffer(F32_XY_TRIANGLE, BufferUsage::VERTEX)
+                .create_buffer(F32_XY_RGB_TRIANGLE, BufferUsage::VERTEX)
                 .map_err(|_| "Couldn't create a buffer for the vertices")?;
 
             let requirements = device.get_buffer_requirements(&buffer);
@@ -410,6 +413,7 @@ impl HalState {
         };
 
         Ok(Self {
+            creation_instant: Instant::now(),
             requirements,
             buffer: ManuallyDrop::new(buffer),
             memory: ManuallyDrop::new(memory),
@@ -455,7 +459,10 @@ impl HalState {
                 "main",
                 None
             )
-            .map_err(|_| "Couldn't compile vertex shader!")?;
+            .map_err(|e| {
+                error!("{}", e);
+                "Couldn't compile vertex shader!"
+            })?;
 
         let fragment_compile_artifact = compiler
             .compile_into_spirv(
@@ -514,18 +521,32 @@ impl HalState {
 
             let vertex_buffers: Vec<VertexBufferDesc> = vec![VertexBufferDesc {
                 binding: 0,
-                stride: (size_of::<f32>() * 2) as u32,
+                stride: (size_of::<f32>() * 5) as ElemStride,
                 rate: 0
             }];
 
-            let attributes: Vec<AttributeDesc> = vec![AttributeDesc {
+            let position_attribute = AttributeDesc {
                 location: 0,
                 binding: 0,
                 element: Element {
                     format: Format::Rg32Float,
                     offset: 0
                 }
-            }];
+            };
+
+            let color_attribute = AttributeDesc {
+                location: 1,
+                binding: 0,
+                element: Element {
+                    format: Format::Rgb32Float,
+                    offset: (size_of::<f32>() * 2) as ElemOffset
+                }
+            };
+
+            let attributes: Vec<AttributeDesc> = vec![
+                position_attribute,
+                color_attribute
+            ];
 
 
             let rasterizer = Rasterizer {
@@ -580,7 +601,7 @@ impl HalState {
                         .map_err(|_| "Couldn't make a DescriptorSetLayout")?
                 }];
 
-            let push_constants = Vec::<(ShaderStageFlags, core::ops::Range<u32>)>::new();
+            let push_constants = vec![(ShaderStageFlags::FRAGMENT, 0..1)];
             let layout = unsafe {
                 device
                     .create_pipeline_layout(&descriptor_set_layouts, push_constants)
@@ -719,12 +740,23 @@ impl HalState {
                 .acquire_mapping_writer(&self.memory, 0..self.requirements.size)
                 .map_err(|_| "Failed to acquire a memory writer")?;
 
-            let points = triangle.points_flat();
-            data_target[..points.len()].copy_from_slice(&points);
+            let [[a, b], [c, d], [e, f]] = triangle.points;
+            let data = [
+                a, b, 1.0, 0.0, 0.0, // red
+                c, d, 0.0, 1.0, 0.0, // green
+                e, f, 0.0, 0.0, 1.0 // blue
+            ];
+
+            data_target[..data.len()].copy_from_slice(&data);
+
             self.device
                 .release_mapping_writer(data_target)
                 .map_err(|_| "Couldn't release the mapping writer")?;
         }
+
+        // time data
+        let duration = Instant::now().duration_since(self.creation_instant);
+        let time_f32 = duration.as_secs() as f32 + duration.subsec_nanos() as f32 * 1e-9;
 
         // record command
         unsafe {
@@ -743,6 +775,13 @@ impl HalState {
                 let buffer_ref: &<back::Backend as Backend>::Buffer = &self.buffer;
                 let buffers: ArrayVec<[_; 1]> = [(buffer_ref, 0)].into();
                 encoder.bind_vertex_buffers(0, buffers);
+                encoder.push_graphics_constants(
+                    &self.pipeline_layout,
+                    ShaderStageFlags::FRAGMENT,
+                    0,
+                    &[time_f32.to_bits()]
+                );
+
                 encoder.draw(0..3, 0..1);
             }
 
