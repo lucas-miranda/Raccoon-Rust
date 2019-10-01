@@ -1,6 +1,3 @@
-mod halstate;
-pub use halstate::{ HalState };
-
 mod game;
 pub use game::Game;
 

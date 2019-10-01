@@ -1,8 +1,10 @@
-mod core;
+mod game;
 mod input;
+mod math;
+mod rendering;
 mod window;
 
-use crate::core::{
+use game::{
     Game
 };
 
