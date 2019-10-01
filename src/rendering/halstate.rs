@@ -104,22 +104,9 @@ use crate::{
     }
 };
 
-pub const VERTEX_SOURCE: &str = "#version 450
-layout (location = 0) in vec2 position;
-out gl_PerVertex {
-  vec4 gl_Position;
-};
-void main()
-{
-  gl_Position = vec4(position, 0.0, 1.0);
-}";
+static VERTEX_SOURCE: &'static str = include_str!("../resources/shaders/basic_shader.vert");
 
-pub const FRAGMENT_SOURCE: &str = "#version 450
-layout(location = 0) out vec4 color;
-void main()
-{
-  color = vec4(1.0);
-}";
+static FRAGMENT_SOURCE: &'static str = include_str!("../resources/shaders/basic_shader.frag");
 
 pub struct HalState {
     buffer: ManuallyDrop<<back::Backend as Backend>::Buffer>,
