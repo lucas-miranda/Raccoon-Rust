@@ -1,0 +1,11 @@
+[package]
+name = "no-backend-test"
+version = "0.1.0"
+authors = ["Lucas Miranda <miranda.a.lucas@gmail.com>"]
+edition = "2018"
+
+[features]
+default = ["raccoon-rust/no-backend"]
+
+[dependencies]
+raccoon-rust = { path = "../..", version = "*"}

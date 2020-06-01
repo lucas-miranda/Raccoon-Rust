@@ -692,7 +692,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "raccoon_rust"
+name = "raccoon-rust"
 version = "0.1.0"
 dependencies = [
  "arrayvec 0.4.11 (registry+https://github.com/rust-lang/crates.io-index)",

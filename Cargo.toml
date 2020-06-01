@@ -1,5 +1,5 @@
 [package]
-name = "raccoon_rust"
+name = "raccoon-rust"
 version = "0.1.0"
 authors = ["Lucas Miranda <miranda.a.lucas@gmail.com>"]
 edition = "2018"
@@ -7,31 +7,24 @@ license = "MIT"
 
 [features]
 default = []
-metal = ["gfx-backend-metal"]
-dx12 = ["gfx-backend-dx12"]
-vulkan = ["gfx-backend-vulkan"]
-gl = ["gfx-backend-gl"]
+metal = ["winit", "shaderc", "gfx-hal", "gfx-backend-metal"]
+dx12 = ["winit", "shaderc", "gfx-hal", "gfx-backend-dx12"]
+vulkan = ["winit", "shaderc", "gfx-hal", "gfx-backend-vulkan"]
+gl = ["winit", "shaderc", "gfx-hal", "gfx-backend-gl"]
+no-backend = []
 
 [dependencies]
 log = "0.4.0"
 simple_logger = "1.0"
-winit = "0.18"
-gfx-hal = "0.1"
 arrayvec = "0.4"
-shaderc = "0.3"
+winit = { version = "0.18", optional = true }
+shaderc = { version = "0.3", optional = true }
+gfx-hal = { version = "0.1", optional = true }
+gfx-backend-gl = { version = "0.1", optional = true } 
+gfx-backend-vulkan = { version = "0.1", optional = true }
 
-[dependencies.gfx-backend-gl]
-version = "0.1"
-optional = true
+[target.'cfg(target_os = "macos")'.dependencies]
+gfx-backend-metal = { version = "0.1", optional = true }
 
-[dependencies.gfx-backend-vulkan]
-version = "0.1"
-optional = true
-
-[target.'cfg(target_os = "macos")'.dependencies.gfx-backend-metal]
-version = "0.1"
-optional = true
-
-[target.'cfg(windows)'.dependencies.gfx-backend-dx12]
-version = "0.1"
-optional = true
+[target.'cfg(windows)'.dependencies]
+gfx-backend-dx12 = { version = "0.1", optional = true }

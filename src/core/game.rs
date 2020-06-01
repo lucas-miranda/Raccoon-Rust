@@ -2,37 +2,48 @@
 use log::{ debug, error, info, trace, warn };
 
 use crate::{
-    game::{
-        GameError
+    core::{
+        GameError,
+        scene::{
+            SceneDirector
+        }
     },
+    /*
     input::{
         UserInput
     },
+    */
+    /*
     math::{
         Triangle
     },
+    */
     rendering::{
-        //HalState,
         Renderer
-    },
+    }
+    /*
     window::{
         Window
     }
+    */
 };
 
 pub struct Game {
+    /*
     pub frame_width: f64,
     pub frame_height: f64,
     pub mouse_x: f64,
     pub mouse_y: f64,
     pub window: Window
+    */
+    pub scene_director: SceneDirector
 }
 
 impl Game {
     pub fn new() -> Result<Self, GameError> {
         simple_logger::init().unwrap();
-        info!("~ Raccoon Rust ~");
 
+        /*
         info!("Creating Window...");
         let window = Window::default();
 
@@ -41,25 +52,26 @@ impl Game {
             .get_inner_size()
             .map(|logical| logical.into())
             .unwrap_or((0.0, 0.0));
+        */
 
-        Ok(Self {
+        Ok(Game {
+            scene_director: SceneDirector::new().unwrap()
+            /*
             frame_width,
             frame_height,
             mouse_x: 0.0,
             mouse_y: 0.0,
-            window
+            //window
+            */
         })
     }
 
     pub fn start(&mut self) {
-        info!("Creating Renderer...");
-        let mut renderer = match Renderer::new(&self.window) {
-            Ok(renderer) => renderer,
-            Err(e) => panic!(e)
-        };
+        info!("~ Raccoon Rust ~");
+        self.run();
+        info!("Terminating Raccoon Rust...")
 
-        info!("Starting...");
-
+        /*
         loop {
             let inputs = UserInput::poll_events_loop(&mut self.window.events_loop);
             if inputs.end_requested {
@@ -87,8 +99,41 @@ impl Game {
                 };
             }
         }
+        */
     }
 
+
+    fn run(&mut self) {
+        info!("Initializing...");
+
+        let renderer = Renderer::new()
+                                .unwrap();
+
+        self.scene_director.initialize();
+
+        info!("Starting...");
+
+        loop {
+            /*
+            self.update();
+            self.render();
+            */
+            self.scene_director.update();
+            self.scene_director.render();
+        }
+    }
+
+    /*
+    fn update(&'a mut self) {
+        self.scene_director.update();
+    }
+
+    fn render(&'a self) {
+        self.scene_director.render();
+    }
+    */
+
+    /*
     pub fn render(&mut self, renderer: &mut Renderer) -> Result<(), &'static str> {
         /*
         let r = (self.mouse_x / self.frame_width) as f32;
@@ -122,6 +167,7 @@ impl Game {
             self.mouse_y = position.1;
         }
     }
+    */
 }
 
 impl Drop for Game {
