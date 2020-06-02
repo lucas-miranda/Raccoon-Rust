@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{
     core::{
         Renderable,
@@ -130,11 +132,11 @@ impl Scene {
 }
 
 impl Updatable for Scene {
-    fn update(&mut self) {
+    fn update(&mut self, delta_time: &Duration) {
         match &mut self._components {
             Some(components) => {
                 for component in components.iter_mut() {
-                    component.update();
+                    component.update(delta_time);
                 }
             },
             None => ()

@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use raccoon_rust::{
     core::{
         Renderable,
@@ -22,7 +24,7 @@ pub struct GameplaySceneComponent {
 }
 
 impl Updatable for GameplaySceneComponent {
-    fn update(&mut self) {
+    fn update(&mut self, delta_time: &Duration) {
         //println!("updating gameplay scene!");
     }
 }

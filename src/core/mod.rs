@@ -10,5 +10,8 @@ pub use renderable::Renderable;
 mod updatable;
 pub use updatable::Updatable;
 
+mod system;
+pub use system::System;
+
 pub mod entity;
 pub mod scene;

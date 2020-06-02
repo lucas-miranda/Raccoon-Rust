@@ -1,42 +1,33 @@
+use std::time::{
+    Duration,
+    Instant
+};
+
 #[allow(unused_imports)]
-use log::{ debug, error, info, trace, warn };
+use log::{ 
+    debug, 
+    error, 
+    info, 
+    trace, 
+    warn 
+};
 
 use crate::{
     core::{
         GameError,
+        System,
         scene::{
             SceneDirector
         }
     },
-    /*
-    input::{
-        UserInput
-    },
-    */
-    /*
-    math::{
-        Triangle
-    },
-    */
     rendering::{
         Renderer
     }
-    /*
-    window::{
-        Window
-    }
-    */
 };
 
 pub struct Game {
-    /*
-    pub frame_width: f64,
-    pub frame_height: f64,
-    pub mouse_x: f64,
-    pub mouse_y: f64,
-    pub window: Window
-    */
-    pub scene_director: SceneDirector
+    pub scene_director: SceneDirector,
+    pub system: System
 }
 
 impl Game {
@@ -55,14 +46,8 @@ impl Game {
         */
 
         Ok(Game {
-            scene_director: SceneDirector::new().unwrap()
-            /*
-            frame_width,
-            frame_height,
-            mouse_x: 0.0,
-            mouse_y: 0.0,
-            //window
-            */
+            scene_director: SceneDirector::new().unwrap(),
+            system: System::new()
         })
     }
 
@@ -102,8 +87,8 @@ impl Game {
         */
     }
 
-
     fn run(&mut self) {
+        self.system.initialize();
         info!("Initializing...");
 
         let renderer = Renderer::new()
@@ -113,25 +98,23 @@ impl Game {
 
         info!("Starting...");
 
-        loop {
-            /*
-            self.update();
+        self.system.start();
+        while self.system.is_running() {
+            let delta_time = self.system.step_timer();
+            println!("dt: {:?}, et: {:?}", delta_time, self.system.get_timer());
+
+            self.update(delta_time);
             self.render();
-            */
-            self.scene_director.update();
-            self.scene_director.render();
         }
     }
 
-    /*
-    fn update(&'a mut self) {
-        self.scene_director.update();
+    fn update(&mut self, delta_time: Duration) {
+        self.scene_director.update(&delta_time, &mut self.system);
     }
 
-    fn render(&'a self) {
+    fn render(&self) {
         self.scene_director.render();
     }
-    */
 
     /*
     pub fn render(&mut self, renderer: &mut Renderer) -> Result<(), &'static str> {

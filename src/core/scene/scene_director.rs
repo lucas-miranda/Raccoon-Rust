@@ -1,9 +1,13 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    time::Duration
+};
 
 use crate::{
     core::{
         Updatable,
         Renderable,
+        System,
         scene::{
             Scene,
             SceneError
@@ -49,16 +53,19 @@ impl SceneDirector {
         }
     }
 
-    pub fn update(&mut self) {
-        //println!("updating scene director");
+    pub fn update(&mut self, delta_time: &Duration, system: &mut System) {
         match self.current_scene_mut() {
-            Some(scene) => scene.update(),
+            Some(scene) => scene.update(delta_time),
             None => ()
+        }
+
+        let timer = system.get_timer();
+        if timer.as_secs() >= 3 {
+            system.close_game();
         }
     }
 
     pub fn render(&self) {
-        //println!("rendering scene director");
         match self.current_scene() {
             Some(scene) => scene.render(),
             None => ()

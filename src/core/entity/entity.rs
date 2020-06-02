@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{
     core::{
         Renderable,
@@ -13,7 +15,7 @@ pub struct Entity {
     _components: Option<Vec<Box<dyn Component>>>
 } 
 impl Updatable for Entity {
-    fn update(&mut self) {
+    fn update(&mut self, delta_time: &Duration) {
         let mut components = self._components.take();
 
         match &mut components {
