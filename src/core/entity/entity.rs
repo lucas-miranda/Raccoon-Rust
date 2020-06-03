@@ -2,8 +2,7 @@ use std::time::Duration;
 
 use crate::{
     core::{
-        Renderable,
-        Updatable,
+        System,
         entity::{
             Component
         }
@@ -14,25 +13,42 @@ pub struct Entity {
     pub name: String,
     _components: Option<Vec<Box<dyn Component>>>
 } 
-impl Updatable for Entity {
-    fn update(&mut self, delta_time: &Duration) {
-        let mut components = self._components.take();
 
-        match &mut components {
-            Some(c) => {
-                for component in c.iter_mut() {
-                    component.update(self);
-                }
-            }
-            None => ()
+impl Entity {
+    pub fn new<S: Into<String>>(name: S) -> Entity {
+        Entity {
+            name: name.into().clone(),
+            _components: Some(Vec::new())
+        }
+    }
+
+    pub fn update(&mut self, delta_time: &Duration, system: &System) {
+        if self._components.is_none() {
+            panic!("Components list isn't valid.");
         }
 
-        self._components = components;
-    }
-}
+        let mut i = 0;
+        while self._components.is_some() && i < self._components.as_ref().unwrap().len() {
+            let mut component = match &mut self._components {
+                Some(components) => components.remove(i),
+                None => break
+            };
 
-impl Renderable for Entity {
-    fn render(&self) {
+            component.update(delta_time, self, system);
+
+            // TODO  Maybe check if component is willing to leave entity
+            //       and don't re-insert it
+
+            match &mut self._components {
+                Some(components) => components.insert(i, component),
+                None => ()
+            }
+
+            i += 1;
+        }
+    }
+
+    pub fn render(&self) {
         match &self._components {
             Some(c) => {
                 for component in c.iter() {
@@ -40,15 +56,6 @@ impl Renderable for Entity {
                 }
             }
             None => ()
-        }
-    }
-}
-
-impl Entity {
-    pub fn new<S: Into<String>>(name: S) -> Entity {
-        Entity {
-            name: name.into().clone(),
-            _components: Some(Vec::new())
         }
     }
 

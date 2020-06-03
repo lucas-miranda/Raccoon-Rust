@@ -2,8 +2,7 @@ use std::time::Duration;
 
 use raccoon_rust::{
     core::{
-        Renderable,
-        Updatable,
+        System,
         entity::{
             Entity,
         },
@@ -21,18 +20,6 @@ use crate::{
 };
 
 pub struct GameplaySceneComponent {
-}
-
-impl Updatable for GameplaySceneComponent {
-    fn update(&mut self, delta_time: &Duration) {
-        //println!("updating gameplay scene!");
-    }
-}
-
-impl Renderable for GameplaySceneComponent {
-    fn render(&self) {
-        //println!("rendering gameplay scene!");
-    }
 }
 
 impl SceneComponent for GameplaySceneComponent {
@@ -53,6 +40,12 @@ impl SceneComponent for GameplaySceneComponent {
     }
 
     fn leaving(&self) {
+    }
+
+    fn update(&mut self, delta_time: &Duration, system: &System) {
+    }
+
+    fn render(&self) {
     }
 
     fn entity_added(&self, entity: &Entity) {

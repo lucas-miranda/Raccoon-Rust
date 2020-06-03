@@ -1,6 +1,11 @@
-use std::any::Any;
+use std::{
+    any::Any,
+    time::Duration
+};
+
 use raccoon_rust::{
     core::{
+        System,
         entity::{
             Component,
             Entity,
@@ -25,16 +30,13 @@ impl Component for PlayerInputComponent {
     fn removed(&self, entity: &Entity) {
     }
 
-    fn update_input(&mut self, input: &mut Input, entity: &mut Entity) {
+    fn update(&mut self, delta_time: &Duration, entity: &mut Entity, system: &System) {
         let transform_component = entity.get_mut_component::<TransformComponent>().unwrap();
 
-        if input.key(KeyCode::A).unwrap().is_pressed() {
+        if system.input.key(KeyCode::A).unwrap().is_pressed() {
             transform_component.change_x(-5f32);
             println!("Player is moving to the left!");
         }
-    }
-
-    fn update(&mut self, entity: &mut Entity) {
     }
 
     fn render(&self, entity: &Entity) {

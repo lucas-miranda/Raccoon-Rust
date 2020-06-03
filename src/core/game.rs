@@ -101,7 +101,7 @@ impl Game {
         self.system.start();
         while self.system.is_running() {
             let delta_time = self.system.step_timer();
-            println!("dt: {:?}, et: {:?}", delta_time, self.system.get_timer());
+            //println!("dt: {:?}, et: {:?}", delta_time, self.system.get_timer());
 
             self.update(delta_time);
             self.render();

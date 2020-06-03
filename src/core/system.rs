@@ -3,8 +3,15 @@ use std::time::{
     Instant
 };
 
+use crate::{
+    input::{
+        Input
+    }
+};
+
 /// Provides info about Game underlying System.
 pub struct System {
+    pub input: Input,
     _running: bool,
     _timer: Duration,
     _last_update_timer_checkpoint: Option<Instant>
@@ -23,23 +30,24 @@ impl System {
         self._running = false;
     }
 
-    pub(super) fn new() -> System {
+    pub(in crate::core) fn new() -> System {
         System {
+            input: Input::new(),
             _running: false,
             _timer: Duration::new(0, 0),
             _last_update_timer_checkpoint: None
         }
     }
 
-    pub(super) fn initialize(&mut self) {
+    pub(in crate::core) fn initialize(&mut self) {
         self._last_update_timer_checkpoint = Some(Instant::now());
     }
 
-    pub(super) fn start(&mut self) {
+    pub(in crate::core) fn start(&mut self) {
         self._running = true;
     }
 
-    pub(super) fn step_timer(&mut self) -> Duration {
+    pub(in crate::core) fn step_timer(&mut self) -> Duration {
         let last_update_timer = match self._last_update_timer_checkpoint {
             Some(t) => t,
             None => panic!("System was not initialized, can't step timer.")

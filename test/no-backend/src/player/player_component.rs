@@ -1,7 +1,11 @@
-use std::any::Any;
+use std::{
+    any::Any,
+    time::Duration
+};
 
 use raccoon_rust::{
     core::{
+        System,
         entity::{
             Component,
             Entity,
@@ -36,10 +40,7 @@ impl Component for PlayerComponent {
     fn removed(&self, entity: &Entity) {
     }
 
-    fn update_input(&mut self, input: &mut Input, entity: &mut Entity) {
-    }
-
-    fn update(&mut self, entity: &mut Entity) {
+    fn update(&mut self, delta_time: &Duration, entity: &mut Entity, system: &System) {
     }
 
     fn render(&self, entity: &Entity) {

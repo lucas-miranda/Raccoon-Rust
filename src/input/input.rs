@@ -12,4 +12,9 @@ impl Input {
     pub fn key(&self, key: KeyCode) -> Option<Key> {
         None
     }
+
+    pub(crate) fn new() -> Input {
+        Input {
+        }
+    }
 }

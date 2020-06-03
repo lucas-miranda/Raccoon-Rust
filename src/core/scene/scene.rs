@@ -2,8 +2,7 @@ use std::time::Duration;
 
 use crate::{
     core::{
-        Renderable,
-        Updatable,
+        System,
         entity::{
             Entity
         },
@@ -83,6 +82,36 @@ impl Scene {
     pub fn leaving(&self) {
     }
 
+    pub fn update(&mut self, delta_time: &Duration, system: &System) {
+        match &mut self._components {
+            Some(components) => {
+                for component in components.iter_mut() {
+                    component.update(delta_time, system);
+                }
+            },
+            None => ()
+        }
+
+        for entity in self._entities.iter_mut() {
+            entity.update(delta_time, system);
+        }
+    }
+
+    pub fn render(&self) {
+        match &self._components {
+            Some(components) => {
+                for component in components.iter() {
+                    component.render();
+                }
+            },
+            None => ()
+        }
+
+        for entity in self._entities.iter() {
+            entity.render();
+        }
+    }
+
     pub fn add_component<T: SceneComponent + 'static>(&mut self, component: T) {
         match &mut self._components {
             Some(components) => components.push(Box::new(component)),
@@ -128,31 +157,5 @@ impl Scene {
 
     fn scene_component_removed(&self, scene_component: &Box<dyn SceneComponent>) {
         unimplemented!();
-    }
-}
-
-impl Updatable for Scene {
-    fn update(&mut self, delta_time: &Duration) {
-        match &mut self._components {
-            Some(components) => {
-                for component in components.iter_mut() {
-                    component.update(delta_time);
-                }
-            },
-            None => ()
-        }
-    }
-}
-
-impl Renderable for Scene {
-    fn render(&self) {
-        match &self._components {
-            Some(components) => {
-                for component in components.iter() {
-                    component.render();
-                }
-            },
-            None => ()
-        }
     }
 }

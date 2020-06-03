@@ -5,8 +5,6 @@ use std::{
 
 use crate::{
     core::{
-        Updatable,
-        Renderable,
         System,
         scene::{
             Scene,
@@ -55,12 +53,13 @@ impl SceneDirector {
 
     pub fn update(&mut self, delta_time: &Duration, system: &mut System) {
         match self.current_scene_mut() {
-            Some(scene) => scene.update(delta_time),
+            Some(scene) => scene.update(delta_time, system),
             None => ()
         }
 
         let timer = system.get_timer();
         if timer.as_secs() >= 3 {
+            println!("Timer test has ended!");
             system.close_game();
         }
     }
