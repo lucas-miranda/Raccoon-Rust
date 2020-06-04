@@ -18,4 +18,9 @@ impl Key {
     pub fn is_up(&self) -> bool {
         true
     }
+
+    pub(super) fn new() -> Key {
+        Key {
+        }
+    }
 }
