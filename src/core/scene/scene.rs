@@ -82,18 +82,18 @@ impl Scene {
     pub fn leaving(&self) {
     }
 
-    pub fn update(&mut self, delta_time: &Duration, system: &System) {
+    pub fn update(&mut self, system: &System) {
         match &mut self._components {
             Some(components) => {
                 for component in components.iter_mut() {
-                    component.update(delta_time, system);
+                    component.update(system);
                 }
             },
             None => ()
         }
 
         for entity in self._entities.iter_mut() {
-            entity.update(delta_time, system);
+            entity.update(system);
         }
     }
 

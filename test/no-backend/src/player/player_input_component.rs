@@ -30,12 +30,12 @@ impl Component for PlayerInputComponent {
     fn removed(&self, entity: &Entity) {
     }
 
-    fn update(&mut self, delta_time: &Duration, entity: &mut Entity, system: &System) {
+    fn update(&mut self, entity: &mut Entity, system: &System) {
         let transform_component = entity.get_mut_component::<TransformComponent>().unwrap();
 
         if system.input.key(KeyCode::A).unwrap().is_pressed() {
             transform_component.change_x(-5f32);
-            println!("Player is moving to the left!");
+            println!("Player is moving to the left! (x: {})", transform_component.x());
         }
     }
 

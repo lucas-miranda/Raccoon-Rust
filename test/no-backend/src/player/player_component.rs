@@ -1,6 +1,5 @@
 use std::{
-    any::Any,
-    time::Duration
+    any::Any
 };
 
 use raccoon_rust::{
@@ -40,7 +39,7 @@ impl Component for PlayerComponent {
     fn removed(&self, entity: &Entity) {
     }
 
-    fn update(&mut self, delta_time: &Duration, entity: &mut Entity, system: &System) {
+    fn update(&mut self, entity: &mut Entity, system: &System) {
     }
 
     fn render(&self, entity: &Entity) {

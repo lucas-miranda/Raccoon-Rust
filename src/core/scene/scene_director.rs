@@ -1,6 +1,5 @@
 use std::{
-    collections::HashMap,
-    time::Duration
+    collections::HashMap
 };
 
 use crate::{
@@ -51,9 +50,9 @@ impl SceneDirector {
         }
     }
 
-    pub fn update(&mut self, delta_time: &Duration, system: &mut System) {
+    pub fn update(&mut self, system: &mut System) {
         match self.current_scene_mut() {
-            Some(scene) => scene.update(delta_time, system),
+            Some(scene) => scene.update(system),
             None => ()
         }
 

@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use raccoon_rust::{
     core::{
         System,
@@ -42,7 +40,7 @@ impl SceneComponent for GameplaySceneComponent {
     fn leaving(&self) {
     }
 
-    fn update(&mut self, delta_time: &Duration, system: &System) {
+    fn update(&mut self, system: &System) {
     }
 
     fn render(&self) {

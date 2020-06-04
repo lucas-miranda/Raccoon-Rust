@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use crate::{
     core::{
         System,
@@ -18,7 +16,7 @@ pub trait SceneComponent {
     fn late_initialize(&self);
     fn entering(&self);
     fn leaving(&self);
-    fn update(&mut self, delta_time: &Duration, system: &System);
+    fn update(&mut self, system: &System);
     fn render(&self);
     fn entity_added(&self, entity: &Entity);
     fn entity_removed(&self, entity: &Entity);

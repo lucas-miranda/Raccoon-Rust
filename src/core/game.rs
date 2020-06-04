@@ -1,8 +1,3 @@
-use std::time::{
-    Duration,
-    Instant
-};
-
 #[allow(unused_imports)]
 use log::{ 
     debug, 
@@ -100,16 +95,16 @@ impl Game {
 
         self.system.start();
         while self.system.is_running() {
-            let delta_time = self.system.step_timer();
+            self.system.step_timer();
             //println!("dt: {:?}, et: {:?}", delta_time, self.system.get_timer());
 
-            self.update(delta_time);
+            self.update();
             self.render();
         }
     }
 
-    fn update(&mut self, delta_time: Duration) {
-        self.scene_director.update(&delta_time, &mut self.system);
+    fn update(&mut self) {
+        self.scene_director.update(&mut self.system);
     }
 
     fn render(&self) {

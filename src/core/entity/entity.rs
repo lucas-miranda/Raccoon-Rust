@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use crate::{
     core::{
         System,
@@ -22,7 +20,7 @@ impl Entity {
         }
     }
 
-    pub fn update(&mut self, delta_time: &Duration, system: &System) {
+    pub fn update(&mut self, system: &System) {
         if self._components.is_none() {
             panic!("Components list isn't valid.");
         }
@@ -34,7 +32,7 @@ impl Entity {
                 None => break
             };
 
-            component.update(delta_time, self, system);
+            component.update(self, system);
 
             // TODO  Maybe check if component is willing to leave entity
             //       and don't re-insert it

@@ -14,7 +14,8 @@ pub struct System {
     pub input: Input,
     _running: bool,
     _timer: Duration,
-    _last_update_timer_checkpoint: Option<Instant>
+    _last_update_timer_checkpoint: Option<Instant>,
+    _last_update_delta_time: Duration
 }
 
 impl System {
@@ -26,6 +27,11 @@ impl System {
         &self._timer
     }
 
+    pub fn get_update_delta_time(&self) -> &Duration {
+        &self._last_update_delta_time
+    }
+
+    // REMOVE ME
     pub fn close_game(&mut self) {
         self._running = false;
     }
@@ -35,7 +41,8 @@ impl System {
             input: Input::new(),
             _running: false,
             _timer: Duration::new(0, 0),
-            _last_update_timer_checkpoint: None
+            _last_update_timer_checkpoint: None,
+            _last_update_delta_time: Duration::new(0, 0)
         }
     }
 
@@ -47,7 +54,7 @@ impl System {
         self._running = true;
     }
 
-    pub(in crate::core) fn step_timer(&mut self) -> Duration {
+    pub(in crate::core) fn step_timer(&mut self) {
         let last_update_timer = match self._last_update_timer_checkpoint {
             Some(t) => t,
             None => panic!("System was not initialized, can't step timer.")
@@ -56,6 +63,6 @@ impl System {
         let delta_time = Instant::now().duration_since(last_update_timer);
         self._timer += delta_time;
         self._last_update_timer_checkpoint = Some(Instant::now());
-        delta_time
+        self._last_update_delta_time = delta_time;
     }
 }

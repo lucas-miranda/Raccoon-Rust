@@ -1,6 +1,5 @@
 use std::{
-    any::Any,
-    time::Duration
+    any::Any
 };
 
 use crate::{
@@ -26,7 +25,7 @@ impl Component for TransformComponent {
     fn removed(&self, entity: &Entity) {
     }
 
-    fn update(&mut self, delta_time: &Duration, entity: &mut Entity, system: &System) {
+    fn update(&mut self, entity: &mut Entity, system: &System) {
     }
 
     fn render(&self, entity: &Entity) {
