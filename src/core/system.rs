@@ -6,13 +6,19 @@ use std::time::{
 use crate::{
     input::{
         Input
+    },
+    tools::{
+        log::Logger
     }
 };
 
 /// Provides info about Game underlying System.
 pub struct System {
     pub input: Input,
+    pub logger: Logger, 
     _running: bool,
+
+    // time
     _timer: Duration,
     _last_update_timer_checkpoint: Option<Instant>,
     _last_update_delta_time: Duration
@@ -39,6 +45,7 @@ impl System {
     pub(in crate::core) fn new() -> System {
         System {
             input: Input::new(),
+            logger: Logger::new(),
             _running: false,
             _timer: Duration::new(0, 0),
             _last_update_timer_checkpoint: None,

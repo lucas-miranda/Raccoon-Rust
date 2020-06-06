@@ -58,7 +58,7 @@ impl SceneDirector {
 
         let timer = system.get_timer();
         if timer.as_secs() >= 3 {
-            println!("Timer test has ended!");
+            system.logger.writeln("", "Timer test has ended!");
             system.close_game();
         }
     }

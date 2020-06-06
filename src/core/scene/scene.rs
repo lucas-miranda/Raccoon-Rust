@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use crate::{
     core::{
         System,
@@ -28,7 +26,7 @@ impl Scene {
     }
 
     pub fn before_initialize(&mut self) {
-        println!("Scene -> before initialize");
+        //println!("Scene -> before initialize");
         let mut c = self._components.take(); 
 
         match &mut c {
@@ -44,7 +42,7 @@ impl Scene {
     }
 
     pub fn initialize(&mut self) {
-        println!("Scene -> initialize");
+        //println!("Scene -> initialize");
         let mut c = self._components.take(); 
 
         match &mut c {
@@ -60,7 +58,7 @@ impl Scene {
     }
 
     pub fn late_initialize(&mut self) {
-        println!("Scene -> late initialize");
+        //println!("Scene -> late initialize");
         let mut c = self._components.take(); 
 
         match &mut c {
@@ -76,7 +74,7 @@ impl Scene {
     }
 
     pub fn entering(&self) {
-        println!("Entering scene")
+        //println!("Entering scene")
     }
 
     pub fn leaving(&self) {

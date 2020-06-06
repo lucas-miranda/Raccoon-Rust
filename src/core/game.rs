@@ -1,12 +1,3 @@
-#[allow(unused_imports)]
-use log::{ 
-    debug, 
-    error, 
-    info, 
-    trace, 
-    warn 
-};
-
 use crate::{
     core::{
         GameError,
@@ -17,6 +8,11 @@ use crate::{
     },
     rendering::{
         Renderer
+    },
+    tools::{
+        log::{
+            StdoutListener
+        }
     }
 };
 
@@ -27,8 +23,6 @@ pub struct Game {
 
 impl Game {
     pub fn new() -> Result<Self, GameError> {
-        simple_logger::init().unwrap();
-
         /*
         info!("Creating Window...");
         let window = Window::default();
@@ -40,16 +34,19 @@ impl Game {
             .unwrap_or((0.0, 0.0));
         */
 
+        let mut system = System::new();
+        system.logger.register(StdoutListener::new());
+
         Ok(Game {
             scene_director: SceneDirector::new().unwrap(),
-            system: System::new()
+            system
         })
     }
 
     pub fn start(&mut self) {
-        info!("~ Raccoon Rust ~");
+        self.system.logger.writeln("info", "~ Raccoon Rust ~");
         self.run();
-        info!("Terminating Raccoon Rust...")
+        self.system.logger.writeln("info", "Terminating Raccoon Rust...");
 
         /*
         loop {
@@ -84,15 +81,14 @@ impl Game {
 
     fn run(&mut self) {
         self.system.initialize();
-        info!("Initializing...");
+        self.system.logger.writeln("info", "Initializing...");
 
         let renderer = Renderer::new()
                                 .unwrap();
 
         self.scene_director.initialize();
 
-        info!("Starting...");
-
+        self.system.logger.writeln("info", "Starting...");
         self.system.start();
         while self.system.is_running() {
             self.system.step_timer();

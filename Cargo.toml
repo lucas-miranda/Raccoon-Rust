@@ -14,8 +14,7 @@ gl = ["winit", "shaderc", "gfx-hal", "gfx-backend-gl"]
 no-backend = []
 
 [dependencies]
-log = "0.4.0"
-simple_logger = "1.0"
+colored = ">= 1.9"
 arrayvec = "0.4"
 winit = { version = "0.18", optional = true }
 shaderc = { version = "0.3", optional = true }

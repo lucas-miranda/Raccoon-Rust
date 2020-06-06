@@ -19,7 +19,7 @@ pub struct TransformComponent {
 
 impl Component for TransformComponent {
     fn added(&self, entity: &mut Entity) {
-        println!("transform component added!");
+        //println!("transform component added!");
     }
 
     fn removed(&self, entity: &Entity) {
