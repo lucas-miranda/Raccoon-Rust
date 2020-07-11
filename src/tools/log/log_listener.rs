@@ -1,5 +1,7 @@
+use super::{
+    Error
+};
 
 pub trait LogListener {
-    fn write(&mut self, category: &str, msg: &str);
-    fn writeln(&mut self, category: &str, msg: &str);
+    fn write(&mut self, context: Option<&str>, msg: &str) -> Result<(), Error>;
 }

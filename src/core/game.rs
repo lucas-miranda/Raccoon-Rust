@@ -11,7 +11,8 @@ use crate::{
     },
     tools::{
         log::{
-            StdoutListener
+            StdoutListener,
+            log_info
         }
     }
 };
@@ -44,9 +45,9 @@ impl Game {
     }
 
     pub fn start(&mut self) {
-        self.system.logger.writeln("info", "~ Raccoon Rust ~");
+        log_info!(self.system.logger, "~ Raccoon Rust ~");
         self.run();
-        self.system.logger.writeln("info", "Terminating Raccoon Rust...");
+        log_info!(self.system.logger, "Terminating Raccoon Rust...");
 
         /*
         loop {
@@ -81,14 +82,14 @@ impl Game {
 
     fn run(&mut self) {
         self.system.initialize();
-        self.system.logger.writeln("info", "Initializing...");
+        log_info!(self.system.logger, "Initializing...");
 
         let renderer = Renderer::new()
                                 .unwrap();
 
         self.scene_director.initialize();
 
-        self.system.logger.writeln("info", "Starting...");
+        log_info!(self.system.logger, "Starting...");
         self.system.start();
         while self.system.is_running() {
             self.system.step_timer();
