@@ -7,6 +7,7 @@ use raccoon_rust::{
     }
 };
 
+/*
 mod player;
 mod scenes;
 
@@ -15,18 +16,25 @@ use crate::{
         GameplaySceneComponent
     }
 };
+*/
 
 fn main() {
     println!("No backend test starting");
 
     match Game::new() {
         Ok(mut game) => {
-            let mut gameplay_scene = Scene::new("gameplay scene");
-            gameplay_scene.add_component(GameplaySceneComponent::new());
+            let realm = Realm::new();
 
-            game.scene_director.insert(gameplay_scene).unwrap();
-            game.scene_director.play("gameplay scene");
-            game.start();
+            // components
+            //realm.register_component<Graphic>();
+
+            // entities
+            realm.create_entity()
+                 .with_component(Transform::new())
+                 .with_component(Graphic::new())
+                 .build();
+
+            game.start(realm);
         },
         Err(e) => panic!(e)
     };

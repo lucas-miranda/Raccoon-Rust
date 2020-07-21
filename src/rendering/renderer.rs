@@ -4,8 +4,12 @@ use crate::{
         Triangle
     },
     */
+    graphics::Graphic,
     rendering::{
-        backends::Backend
+        backends::{
+            BackendInterface,
+            Backend
+        }
     }
     /*
     window::{
@@ -15,7 +19,7 @@ use crate::{
 };
 
 pub struct Renderer {
-    _backend: Backend
+    backend: Backend
 }
 
 impl Renderer {
@@ -23,8 +27,12 @@ impl Renderer {
         let backend = Backend::new()?;
 
         Ok(Self {
-            _backend: backend
+            backend: backend
         })
+    }
+
+    pub fn render<T: Graphic>(&self, graphic: &T) {
+        self.backend.draw(graphic);
     }
 
     /*

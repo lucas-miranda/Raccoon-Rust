@@ -1,4 +1,9 @@
-use super::BackendInterface;
+use crate::{
+    graphics::Graphic,
+    rendering::{
+        BackendInterface
+    }
+};
 
 pub struct NoBackend {
 }
@@ -10,7 +15,11 @@ impl NoBackend {
 }
 
 impl BackendInterface for NoBackend {
-    fn has_texture_available() -> bool {
+    fn has_texture_available(&self) -> bool {
         false
+    }
+
+    fn draw<T: Graphic>(&self, graphic: &T) {
+        // can't draw anything :/
     }
 }

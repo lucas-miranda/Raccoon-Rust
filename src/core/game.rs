@@ -1,11 +1,15 @@
 use crate::{
     core::{
-        GameError,
-        System,
-        scene::{
-            SceneDirector
-        }
+        ecs::{
+            systems::{
+                GameSystem,
+                //RenderingSystem
+            },
+            Realm
+        },
+        GameError
     },
+    /*
     rendering::{
         Renderer
     },
@@ -15,97 +19,57 @@ use crate::{
             log_info
         }
     }
+    */
 };
 
-pub struct Game {
-    pub scene_director: SceneDirector,
-    pub system: System
+pub struct Game<'r> {
+    realm: Option<Realm<'r>>
 }
 
-impl Game {
-    pub fn new() -> Result<Self, GameError> {
-        /*
-        info!("Creating Window...");
-        let window = Window::default();
-
-        let (frame_width, frame_height) = window
-            .winit_window
-            .get_inner_size()
-            .map(|logical| logical.into())
-            .unwrap_or((0.0, 0.0));
-        */
-
-        let mut system = System::new();
-        system.logger.register(StdoutListener::new());
-
-        Ok(Game {
-            scene_director: SceneDirector::new().unwrap(),
-            system
+impl<'r> Game<'r> {
+    pub fn new() -> Result<Game<'r>, GameError> {
+        Ok(Game { 
+            realm: None
         })
     }
 
-    pub fn start(&mut self) {
-        log_info!(self.system.logger, "~ Raccoon Rust ~");
+    pub fn start<'a: 'r>(&'a mut self, realm: Realm<'r>) {
+        self.realm = Some(realm);
         self.run();
-        log_info!(self.system.logger, "Terminating Raccoon Rust...");
+    }
 
-        /*
+    fn run<'a: 'r>(&'a mut self) {
+        let realm = &mut self.realm;
+
         loop {
-            let inputs = UserInput::poll_events_loop(&mut self.window.events_loop);
-            if inputs.end_requested {
-                break;
-            }
+            match realm.as_mut().unwrap().get_mut_system::<GameSystem, _>("game") {
+                Some(game_system) => {
+                    //game_system.try_run();
+                    if !game_system.is_running() {
+                        break;
+                    }
 
-            if inputs.new_frame_size.is_some() {
-                debug!("Window changed size, restarting Renderer...");
-                std::mem::drop(renderer);
-                renderer = match Renderer::new(&self.window) {
-                    Ok(renderer) => renderer,
-                    Err(e) => panic!(e)
-                };
-            }
+                    game_system.step_timer();
+                    //println!("dt: {:?}, et: {:?}", delta_time, self.system.get_timer());
+                },
+                None => break
+            };
 
-            self.update_from_input(inputs);
+            realm.as_mut().unwrap().run_systems();
 
-            if let Err(e) = self.render(&mut renderer) {
-                error!("Rendering Error: {:?}", e);
-                debug!("Auto-restarting HalState...");
-                std::mem::drop(renderer);
-                renderer = match Renderer::new(&self.window) {
-                    Ok(renderer) => renderer,
-                    Err(e) => panic!(e)
-                };
+            /*
+            for system in realm.iter_systems() {
+                system.try_run();
             }
+            */
+
+            /*
+            let rendering_system = realm.get_system("rendering");
+            rendering_system.run();
+            */
+
+            //realm.upkeep();
         }
-        */
-    }
-
-    fn run(&mut self) {
-        self.system.initialize();
-        log_info!(self.system.logger, "Initializing...");
-
-        let renderer = Renderer::new()
-                                .unwrap();
-
-        self.scene_director.initialize();
-
-        log_info!(self.system.logger, "Starting...");
-        self.system.start();
-        while self.system.is_running() {
-            self.system.step_timer();
-            //println!("dt: {:?}, et: {:?}", delta_time, self.system.get_timer());
-
-            self.update();
-            self.render();
-        }
-    }
-
-    fn update(&mut self) {
-        self.scene_director.update(&mut self.system);
-    }
-
-    fn render(&self) {
-        self.scene_director.render();
     }
 
     /*
@@ -145,7 +109,7 @@ impl Game {
     */
 }
 
-impl Drop for Game {
+impl<'r> Drop for Game<'r> {
     fn drop(&mut self) {
     }
 }
