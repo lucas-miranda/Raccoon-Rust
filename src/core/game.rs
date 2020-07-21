@@ -22,40 +22,46 @@ use crate::{
     */
 };
 
-pub struct Game<'r> {
-    realm: Option<Realm<'r>>
+pub struct Game {
+    realm: Option<Realm>
 }
 
-impl<'r> Game<'r> {
-    pub fn new() -> Result<Game<'r>, GameError> {
+impl Game {
+    pub fn new() -> Result<Game, GameError> {
         Ok(Game { 
             realm: None
         })
     }
 
-    pub fn start<'a: 'r>(&'a mut self, realm: Realm<'r>) {
+    pub fn start(&mut self, realm: Realm) {
         self.realm = Some(realm);
         self.run();
     }
 
-    fn run<'a: 'r>(&'a mut self) {
+    fn run(&mut self) {
         let realm = &mut self.realm;
 
         loop {
-            match realm.as_mut().unwrap().get_mut_system::<GameSystem, _>("game") {
-                Some(game_system) => {
-                    //game_system.try_run();
-                    if !game_system.is_running() {
-                        break;
-                    }
+            match realm {
+                Some(r) => {
+                    match r.get_mut_system::<GameSystem, _>("game") {
+                        Some(game_system) => {
+                            //game_system.try_run();
+                            if !game_system.is_running() {
+                                break;
+                            }
 
-                    game_system.step_timer();
-                    //println!("dt: {:?}, et: {:?}", delta_time, self.system.get_timer());
-                },
-                None => break
-            };
+                            game_system.step_timer();
+                            //println!("dt: {:?}, et: {:?}", delta_time, self.system.get_timer());
+                        },
+                        None => break
+                    };
 
-            realm.as_mut().unwrap().run_systems();
+                    r.run_systems();
+                }
+                None => ()
+            }
+
 
             /*
             for system in realm.iter_systems() {
@@ -109,7 +115,7 @@ impl<'r> Game<'r> {
     */
 }
 
-impl<'r> Drop for Game<'r> {
+impl Drop for Game {
     fn drop(&mut self) {
     }
 }

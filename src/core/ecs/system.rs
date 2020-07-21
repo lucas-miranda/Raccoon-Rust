@@ -5,20 +5,20 @@ use super::{
 };
 
 pub trait System {
-    type DataType;
+    type DataType: Component + 'static;
 
-    fn run(&mut self, component_type: Self::DataType);
+    fn run<'a>(&mut self, component_type: &SystemDataContainer<'a, Self::DataType>);
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 
-pub struct SystemDataContainer<'a, T: Component + 'static> {
-    componentA: Option<&'a T>
+pub struct SystemDataContainer<'c, T: Component + 'static> {
+    pub componentA: Option<&'c T>
 }
 
-impl<'a, T: Component + 'static> SystemDataContainer<'a, T> {
-    pub fn new() -> SystemDataContainer<'a, T> {
+impl<'c, T: Component + 'static> SystemDataContainer<'c, T> {
+    pub fn new<'a>() -> SystemDataContainer<'a, T> {
         SystemDataContainer {
             componentA: None
         }
@@ -32,7 +32,7 @@ impl<'a, T: Component + 'static> SystemDataContainer<'a, T> {
         component.as_any().is::<T>()
     }
 
-    pub fn get(&self, index: i32) -> Option<&'a T> {
+    pub fn get(&self, index: i32) -> Option<&T> {
         if index < 0 || index > 1 {
             panic!("Index out of range, acceptable range is [0, 0]");
         }
@@ -40,7 +40,7 @@ impl<'a, T: Component + 'static> SystemDataContainer<'a, T> {
         self.componentA
     }
 
-    pub fn set(&mut self, index: i32, component: &'a T) {
+    pub fn set(&mut self, index: i32, component: &'c T) {
         if index < 0 || index > 1 {
             panic!("Index out of range, acceptable range is [0, 0]");
         }
@@ -50,49 +50,77 @@ impl<'a, T: Component + 'static> SystemDataContainer<'a, T> {
 }
 
 
-pub struct AnySystem<'s> {
+pub struct AnySystem {
     sys: Option<Box<dyn Any>>,
-    runner: Box<dyn FnMut(&mut Box<dyn Any>, &'s Vec<Box<dyn Component>>) + 's>
+    filter: Box<dyn Fn(&Vec<Box<dyn Component>>) -> Vec<usize>>,
+    runner: Box<dyn FnMut(&mut Box<dyn Any>, &mut Vec<Box<dyn Component>>)>
 }
 
-impl<'s> AnySystem<'s> {
-    pub fn new<U: Component + 'static, T: System<DataType = SystemDataContainer<'s, U>> + Any + 'static>(mut system: T) -> AnySystem<'s> {
+impl AnySystem {
+    pub fn new<U: Component + 'static, T: System<DataType = U> + Any + 'static>(mut system: T) -> AnySystem {
         AnySystem {
             sys: Some(Box::new(system)),
+            filter: Box::new(|components| {
+                let mut indices = Vec::new();
+
+                let mut i = 0usize;
+                for c in components.iter() {
+                    if c.as_any().is::<U>() {
+                        indices.push(i);
+                    }
+
+                    i += 1;
+                }
+
+                indices
+            }),
             runner: Box::new(|s, components| {
                 let mut container = SystemDataContainer::<U>::new();
                 let mut i = 0;
 
                 for c in components.iter() {
-                    if container.check(i, c.as_ref()) {
-                        container.set(
-                            i, 
-                            c.as_any()
-                             .downcast_ref::<U>()
-                             .expect("Expecting a concrete type.")
-                        );
+                    container.set(
+                        i, 
+                        c.as_any()
+                         .downcast_ref::<U>()
+                         .expect("Expecting a concrete type.")
+                    );
 
-                        i += 1;
-                    }
+                    i += 1;
                 }
 
                 match s.downcast_mut::<T>() {
-                    Some(reconstructed_system) => reconstructed_system.run(container),
+                    Some(reconstructed_system) => reconstructed_system.run(&container),
                     None => panic!("Can't reconstruct system type.")
-                }
+                };
+
+                // TODO return components from container
             })
         }
     }
 
-    pub fn try_run(&mut self, components: &'s Vec<Box<dyn Component>>) {
+    pub fn try_run<'a>(&mut self, components: &'a mut Vec<Box<dyn Component>>) {
+        let indices = (self.filter)(components);
+        if indices.is_empty() {
+            return;
+        }
+
+        let mut requirements = Vec::new();
+        // TODO  remove at indexes reversed sort order
+        for index in indices.iter() {
+            requirements.push(components.remove(*index));
+        }
+
         let mut sys = self.sys.take();
 
         match &mut sys {
-            Some(s) => (self.runner)(s, components),
+            Some(s) => (self.runner)(s, &mut requirements),
             None => panic!("Impossible to run, system is None.")
         }
 
         self.sys = sys;
+
+        // TODO  return components
     }
 
     pub fn get_system(&self) -> &dyn Any {

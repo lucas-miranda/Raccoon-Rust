@@ -3,6 +3,7 @@ pub use entity::Entity;
 
 mod component;
 pub use component::Component;
+pub mod components;
 
 mod realm;
 pub use realm::Realm;

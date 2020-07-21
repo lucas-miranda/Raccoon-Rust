@@ -7,7 +7,9 @@ use std:: {
 };
 
 use crate::core::ecs::{
-    System
+    components::EmptyComponent,
+    System,
+    SystemDataContainer
 };
 
 /// Provides info about Game underlying System.
@@ -21,9 +23,9 @@ pub struct GameSystem {
 }
 
 impl System for GameSystem {
-    type DataType = ();
+    type DataType = EmptyComponent;
 
-    fn run(&mut self, nothing: ()) {
+    fn run(&mut self, nothing: &SystemDataContainer<EmptyComponent>) {
     }
 
     fn as_any(&self) -> &dyn Any {
