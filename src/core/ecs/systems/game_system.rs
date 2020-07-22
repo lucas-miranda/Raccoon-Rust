@@ -38,6 +38,15 @@ impl System for GameSystem {
 }
 
 impl GameSystem {
+    pub fn new() -> GameSystem {
+        GameSystem {
+            is_running: false,
+            timer: Duration::new(0, 0),
+            last_update_timer_checkpoint: None,
+            last_update_delta_time: Duration::new(0, 0)
+        }
+    }
+
     pub fn is_running(&self) -> bool {
         self.is_running
     }

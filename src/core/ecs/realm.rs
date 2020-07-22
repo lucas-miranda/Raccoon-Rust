@@ -9,20 +9,22 @@ use super::{
     AnySystem,
     Component,
     Entity,
-    System,
-    SystemDataContainer
+    EntityBuilder,
+    System
 };
 
 pub struct Realm {
     systems: HashMap<String, AnySystem>,
-    entities: Option<Vec<Entity>>
+    entities: Option<Vec<Entity>>,
+    next_entity_id: u64
 }
 
 impl Realm {
     pub fn new() -> Realm {
         Realm {
             systems: HashMap::new(),
-            entities: Some(Vec::new())
+            entities: Some(Vec::new()),
+            next_entity_id: 0u64
         }
     }
 
@@ -75,6 +77,16 @@ impl Realm {
     pub fn register_component<C: Component>(&mut self) {
     }
 
-    pub fn build_entity() {
+    pub fn add_entity(&mut self, entity: Entity) {
+        match self.entities {
+            Some(ref mut entities) => entities.push(entity),
+            None => panic!("Entities not found.")
+        }
+    }
+
+    pub fn create_entity<'a>(&'a mut self) -> EntityBuilder<'a> {
+        self.next_entity_id += 1;
+        let builder = EntityBuilder::new(self.next_entity_id, self);
+        builder
     }
 }

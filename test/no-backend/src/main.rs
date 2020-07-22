@@ -1,8 +1,15 @@
 use raccoon_rust::{
     core::{
         Game,
-        scene::{
-            Scene
+        ecs::{
+            components::{
+                GraphicRendererComponent,
+                TransformComponent
+            },
+            systems::{
+                GameSystem,
+            },
+            Realm
         }
     }
 };
@@ -23,15 +30,18 @@ fn main() {
 
     match Game::new() {
         Ok(mut game) => {
-            let realm = Realm::new();
+            let mut realm = Realm::new();
 
             // components
             //realm.register_component<Graphic>();
 
+            // systems
+            realm.register_system("game", GameSystem::new());
+
             // entities
             realm.create_entity()
-                 .with_component(Transform::new())
-                 .with_component(Graphic::new())
+                 .with_component(TransformComponent::new())
+                 .with_component(GraphicRendererComponent::new())
                  .build();
 
             game.start(realm);

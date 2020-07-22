@@ -48,13 +48,17 @@ impl Game {
                         Some(game_system) => {
                             //game_system.try_run();
                             if !game_system.is_running() {
+                                println!("Game isn't running anymore");
                                 break;
                             }
 
                             game_system.step_timer();
                             //println!("dt: {:?}, et: {:?}", delta_time, self.system.get_timer());
                         },
-                        None => break
+                        None => {
+                            println!("Game system not found, closing...");
+                            break
+                        }
                     };
 
                     r.run_systems();

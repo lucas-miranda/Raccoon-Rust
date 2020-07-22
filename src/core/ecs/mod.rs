@@ -1,6 +1,9 @@
 mod entity;
 pub use entity::Entity;
 
+mod entity_builder;
+pub use entity_builder::EntityBuilder;
+
 mod component;
 pub use component::Component;
 pub mod components;
