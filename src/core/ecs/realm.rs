@@ -34,12 +34,14 @@ impl Realm {
         match entities {
             Some(ref mut e) => {
                 for system in self.systems.values_mut() {
+                    system.run();
+
                     // TODO get requirements
                     // TODO check
 
                     // run
                     for entity in e.iter_mut() {
-                        system.try_run(entity.get_mut_components());
+                        system.handle(entity.get_mut_components());
                     }
                 }
             },

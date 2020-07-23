@@ -33,39 +33,49 @@ impl Game {
         })
     }
 
-    pub fn start(&mut self, realm: Realm) {
+    pub fn start(&mut self, mut realm: Realm) {
+        realm.register_system("game", GameSystem::new());
         self.realm = Some(realm);
         self.run();
     }
 
     fn run(&mut self) {
-        let realm = &mut self.realm;
+        let mut realm = self.realm.take()
+                                  .expect("Realm not found.");
+
+        match realm.get_mut_system::<GameSystem, _>("game") {
+            Some(game_system) => {
+                println!("Initializing...");
+                game_system.initialize();
+
+                println!("Starting...");
+                game_system.start();
+            },
+            None => {
+                println!("Game system not found, closing...");
+                return;
+            }
+        }
 
         loop {
-            match realm {
-                Some(r) => {
-                    match r.get_mut_system::<GameSystem, _>("game") {
-                        Some(game_system) => {
-                            //game_system.try_run();
-                            if !game_system.is_running() {
-                                println!("Game isn't running anymore");
-                                break;
-                            }
+            match realm.get_mut_system::<GameSystem, _>("game") {
+                Some(game_system) => {
+                    //game_system.try_run();
+                    if !game_system.is_running() {
+                        println!("Game isn't running anymore");
+                        break;
+                    }
 
-                            game_system.step_timer();
-                            //println!("dt: {:?}, et: {:?}", delta_time, self.system.get_timer());
-                        },
-                        None => {
-                            println!("Game system not found, closing...");
-                            break
-                        }
-                    };
-
-                    r.run_systems();
+                    game_system.step_timer();
+                    println!("dt: {:?}, et: {:?}", game_system.get_update_delta_time(), game_system.get_timer());
+                },
+                None => {
+                    println!("Game system not found, closing...");
+                    break
                 }
-                None => ()
-            }
+            };
 
+            realm.run_systems();
 
             /*
             for system in realm.iter_systems() {

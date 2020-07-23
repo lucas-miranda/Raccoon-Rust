@@ -25,7 +25,14 @@ pub struct GameSystem {
 impl System for GameSystem {
     type DataType = EmptyComponent;
 
-    fn run(&mut self, nothing: &SystemDataContainer<EmptyComponent>) {
+    fn run(&mut self) {
+        if self.timer.as_secs() >= 3 {
+            println!("Timer test has ended!");
+            self.close_game();
+        }
+    }
+
+    fn handle(&mut self, nothing: &SystemDataContainer<EmptyComponent>) {
     }
 
     fn as_any(&self) -> &dyn Any {
