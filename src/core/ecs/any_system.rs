@@ -14,7 +14,7 @@ pub struct AnySystem {
 }
 
 impl AnySystem {
-    pub fn new<U: Component + 'static, T: System<DataType = U> + Any + 'static>(mut system: T) -> AnySystem {
+    pub fn new<U: Component + 'static, T: System<DataType = U> + Any + 'static>(system: T) -> AnySystem {
         AnySystem {
             sys: Some(Box::new(system)),
             filter: Box::new(|components| {

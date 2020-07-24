@@ -32,7 +32,7 @@ impl System for GameSystem {
         }
     }
 
-    fn handle(&mut self, nothing: &SystemDataContainer<EmptyComponent>) {
+    fn handle(&mut self, _nothing: &SystemDataContainer<EmptyComponent>) {
     }
 
     fn as_any(&self) -> &dyn Any {

@@ -1,13 +1,13 @@
 use super::Component;
 
 pub struct SystemDataContainer<'c, T: Component + 'static> {
-    pub componentA: Option<&'c T>
+    pub component_a: Option<&'c T>
 }
 
 impl<'c, T: Component + 'static> SystemDataContainer<'c, T> {
     pub fn new<'a>() -> SystemDataContainer<'a, T> {
         SystemDataContainer {
-            componentA: None
+            component_a: None
         }
     }
 
@@ -24,7 +24,7 @@ impl<'c, T: Component + 'static> SystemDataContainer<'c, T> {
             panic!("Index out of range, acceptable range is [0, 0]");
         }
 
-        self.componentA
+        self.component_a
     }
 
     pub fn set(&mut self, index: i32, component: &'c T) {
@@ -32,6 +32,6 @@ impl<'c, T: Component + 'static> SystemDataContainer<'c, T> {
             panic!("Index out of range, acceptable range is [0, 0]");
         }
 
-        self.componentA = Some(component);
+        self.component_a = Some(component);
     }
 }

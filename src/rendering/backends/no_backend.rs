@@ -19,7 +19,7 @@ impl BackendInterface for NoBackend {
         false
     }
 
-    fn draw<T: Graphic>(&self, graphic: &T) {
+    fn draw<T: Graphic>(&self, _graphic: &T) {
         // can't draw anything :/
     }
 }
