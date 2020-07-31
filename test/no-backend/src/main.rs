@@ -6,24 +6,10 @@ use raccoon_rust::{
                 GraphicRendererComponent,
                 TransformComponent
             },
-            systems::{
-                GameSystem,
-            },
             Realm
         }
     }
 };
-
-/*
-mod player;
-mod scenes;
-
-use crate::{
-    scenes::{
-        GameplaySceneComponent
-    }
-};
-*/
 
 fn main() {
     println!("No backend test starting");
@@ -36,7 +22,6 @@ fn main() {
             //realm.register_component<Graphic>();
 
             // systems
-            realm.register_system("game", GameSystem::new());
 
             // entities
             realm.create_entity()

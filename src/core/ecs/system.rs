@@ -1,15 +1,24 @@
-use std::any::Any;
+use std::{
+    any::Any,
+    borrow::BorrowMut
+};
 
-use super::{
-    Component,
-    SystemDataContainer
+use crate::{
+    core::{
+        ecs::{
+            Component,
+            SystemDataContainer
+        },
+        GameController
+    }
 };
 
 pub trait System {
-    type DataType: Component + 'static;
+    type DataType: SystemDataContainer;
 
-    fn run(&mut self);
-    fn handle<'a>(&mut self, component_type: &SystemDataContainer<'a, Self::DataType>);
+    fn setup(&mut self, game_controller: &mut GameController);
+    fn run(&mut self, game_controller: &mut GameController);
+    fn handle<'a>(&mut self, component_type: &Self::DataType, game_controller: &mut GameController);
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }

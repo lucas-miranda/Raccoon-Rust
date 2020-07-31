@@ -18,6 +18,9 @@ pub use realm::Realm;
 mod system;
 pub use system::System;
 
+mod simple_data_container;
+pub use simple_data_container::SimpleDataContainer;
+
 mod system_data_container;
 pub use system_data_container::SystemDataContainer;
 

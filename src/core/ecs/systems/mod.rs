@@ -1,5 +1,5 @@
-mod game_system;
-pub use game_system::GameSystem;
+mod update_system;
+pub use update_system::UpdateSystem;
 
 /*
 mod rendering_system;

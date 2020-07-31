@@ -2,11 +2,11 @@ use crate::{
     core::{
         ecs::{
             systems::{
-                GameSystem,
-                //RenderingSystem
+                UpdateSystem
             },
             Realm
         },
+        GameController,
         GameError
     },
     /*
@@ -34,60 +34,23 @@ impl Game {
     }
 
     pub fn start(&mut self, mut realm: Realm) {
-        realm.register_system("game", GameSystem::new());
+        // register default systems
+        realm.register_system("update", UpdateSystem::new());
+
         self.realm = Some(realm);
         self.run();
     }
 
     fn run(&mut self) {
+        let mut game_controller = GameController::new();
         let mut realm = self.realm.take()
                                   .expect("Realm not found.");
 
-        match realm.get_mut_system::<GameSystem, _>("game") {
-            Some(game_system) => {
-                println!("Initializing...");
-                game_system.initialize();
+        realm.setup_systems(&mut game_controller);
+        game_controller.start();
 
-                println!("Starting...");
-                game_system.start();
-            },
-            None => {
-                println!("Game system not found, closing...");
-                return;
-            }
-        }
-
-        loop {
-            match realm.get_mut_system::<GameSystem, _>("game") {
-                Some(game_system) => {
-                    //game_system.try_run();
-                    if !game_system.is_running() {
-                        println!("Game isn't running anymore");
-                        break;
-                    }
-
-                    game_system.step_timer();
-                    println!("dt: {:?}, et: {:?}", game_system.get_update_delta_time(), game_system.get_timer());
-                },
-                None => {
-                    println!("Game system not found, closing...");
-                    break
-                }
-            };
-
-            realm.run_systems();
-
-            /*
-            for system in realm.iter_systems() {
-                system.try_run();
-            }
-            */
-
-            /*
-            let rendering_system = realm.get_system("rendering");
-            rendering_system.run();
-            */
-
+        while game_controller.is_running() {
+            realm.run_systems(&mut game_controller);
             //realm.upkeep();
         }
     }

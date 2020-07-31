@@ -1,3 +1,4 @@
+use std::any::Any;
 use super::Component;
 
 pub struct Entity {

@@ -5,12 +5,18 @@ use std::collections::{
     HashMap
 };
 
-use super::{
-    AnySystem,
-    Component,
-    Entity,
-    EntityBuilder,
-    System
+use crate::{
+    core::{
+        ecs::{
+            AnySystem,
+            Component,
+            Entity,
+            EntityBuilder,
+            System,
+            SystemDataContainer
+        },
+        GameController
+    }
 };
 
 pub struct Realm {
@@ -19,6 +25,7 @@ pub struct Realm {
     next_entity_id: u64
 }
 
+type ComponentCollection = Vec<Box<dyn Component>>;
 impl Realm {
     pub fn new() -> Realm {
         Realm {
@@ -28,20 +35,26 @@ impl Realm {
         }
     }
 
-    pub fn run_systems(&mut self) {
+    pub fn setup_systems(&mut self, game_controller: &mut GameController) {
+        for system in self.systems.values_mut() {
+            system.setup(game_controller);
+        }
+    }
+
+    pub fn run_systems(&mut self, game_controller: &mut GameController) {
         let mut entities = self.entities.take();
 
         match entities {
             Some(ref mut e) => {
                 for system in self.systems.values_mut() {
-                    system.run();
+                    system.run(game_controller);
 
                     // TODO get requirements
                     // TODO check
 
                     // run
                     for entity in e.iter_mut() {
-                        system.handle(entity.get_mut_components());
+                        system.handle(entity.get_mut_components(), game_controller);
                     }
                 }
             },
@@ -58,21 +71,21 @@ impl Realm {
         self.systems.values()
     }
 
-    pub fn get_system<'a, S: System + 'static, T: Into<String>>(&'a self, label: T) -> Option<&'a S> {
+    pub fn get_system<'a, S: 'static + System, T: Into<String>>(&'a self, label: T) -> Option<&'a S> {
         match self.systems.get::<String>(&label.into()) {
             Some(any_system) => any_system.get_system().downcast_ref::<S>(),
             None => None
         }
     }
 
-    pub fn get_mut_system<'a, S: System + 'static, T: Into<String>>(&'a mut self, label: T) -> Option<&'a mut S> {
+    pub fn get_mut_system<'a, S: 'static + System, T: Into<String>>(&'a mut self, label: T) -> Option<&'a mut S> {
         match self.systems.get_mut::<String>(&label.into()) {
             Some(any_system) => any_system.get_mut_system().downcast_mut::<S>(),
             None => None
         }
     }
 
-    pub fn register_system<K: Into<String>, U: Component + 'static, T: System<DataType = U> + 'static>(&mut self, label: K, system: T) {
+    pub fn register_system<K: Into<String>, U: 'static + SystemDataContainer, T: 'static + System<DataType = U>>(&mut self, label: K, system: T) {
         self.systems.insert(label.into(), AnySystem::new(system));
     }
 

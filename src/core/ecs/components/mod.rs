@@ -7,3 +7,6 @@ pub use transform_component::TransformComponent;
 
 mod graphic_renderer_component;
 pub use graphic_renderer_component::GraphicRendererComponent;
+
+mod updatable;
+pub use updatable::Updatable;
