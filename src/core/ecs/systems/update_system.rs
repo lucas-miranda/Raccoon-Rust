@@ -12,7 +12,6 @@ use crate::{
             components::{
                 EmptyComponent
             },
-            Component,
             SimpleDataContainer,
             System
         },
@@ -26,7 +25,6 @@ pub struct UpdateSystem {
     last_update_delta_time: Duration
 }
 
-type ComponentCollection = Vec<Box<dyn Component>>;
 impl System for UpdateSystem {
     type DataType = (
         SimpleDataContainer<EmptyComponent>,
