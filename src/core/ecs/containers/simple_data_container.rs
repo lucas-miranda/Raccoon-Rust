@@ -6,10 +6,10 @@ use std::{
     marker::PhantomData
 };
 
-use super::{
+use crate::core::ecs::{
+    containers::SystemDataContainer,
     Component,
     EntityId,
-    SystemDataContainer
 };
 
 pub struct SimpleDataContainer<T: Component + 'static> {

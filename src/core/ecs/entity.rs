@@ -1,17 +1,22 @@
-use std::any::Any;
 use super::Component;
 
+pub type EntityId = u64;
+
 pub struct Entity {
-    id: u64,
+    pub(super) id: EntityId,
     components: Vec<Box<dyn Component>>
 }
 
 impl Entity {
-    pub fn new(id: u64) -> Entity {
+    pub fn new(id: EntityId) -> Entity {
         Entity {
             id,
             components: Vec::new()
         }
+    }
+
+    pub fn get_id(&self) -> EntityId {
+        self.id
     }
 
     pub fn get_components(&self) -> &Vec<Box<dyn Component>> {

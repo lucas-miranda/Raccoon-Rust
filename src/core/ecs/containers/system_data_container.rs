@@ -1,15 +1,22 @@
-use super::Component;
+use std::collections::hash_map::Drain;
+
+use crate::core::ecs::{
+    Component,
+    EntityId
+};
 
 type ComponentCollection = Vec<Box<dyn Component>>;
 
 pub trait SystemDataContainer {
     type ComponentType;
 
-    fn new(component: Self::ComponentType) -> Self;
-    fn try_from(components: &mut ComponentCollection) -> Result<Self, &'static str> where Self: Sized;
-    fn take(&mut self) -> Vec<Option<Box<dyn Component>>>;
+    fn new() -> Self;
+    fn try_add(&mut self, entity_id: EntityId, components: &mut ComponentCollection);
+    fn drain(&mut self) -> Drain<EntityId, ComponentCollection>;
+    //fn take(&mut self) -> Vec<Option<Box<dyn Component>>>;
 }
 
+/*
 impl<T, C1, U, C2> SystemDataContainer for (T, U) where
   C1: Component + 'static,
   C2: Component + 'static,
@@ -17,10 +24,6 @@ impl<T, C1, U, C2> SystemDataContainer for (T, U) where
   U: SystemDataContainer<ComponentType = C2>,
 {
     type ComponentType = (C1, C2);
-
-    fn new(component: Self::ComponentType) -> Self {
-        (T::new(component.0), U::new(component.1))
-    }
 
     fn try_from(components: &mut ComponentCollection) -> Result<Self, &'static str> {
         if components.len() != 2 {
@@ -58,3 +61,4 @@ impl<T, C1, U, C2> SystemDataContainer for (T, U) where
         )
     }
 }
+*/

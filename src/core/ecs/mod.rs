@@ -1,6 +1,9 @@
 // entity related
 mod entity;
-pub use entity::Entity;
+pub use entity::{ 
+    Entity, 
+    EntityId 
+};
 
 mod entity_builder;
 pub use entity_builder::EntityBuilder;
@@ -8,6 +11,7 @@ pub use entity_builder::EntityBuilder;
 // component related
 mod component;
 pub use component::Component;
+
 pub mod components;
 
 // realm related
@@ -18,11 +22,10 @@ pub use realm::Realm;
 mod system;
 pub use system::System;
 
-mod simple_data_container;
-pub use simple_data_container::SimpleDataContainer;
+pub mod containers;
 
-mod system_data_container;
-pub use system_data_container::SystemDataContainer;
+//mod boxed_data_container;
+//pub use boxed_data_container::BoxedDataContainer;
 
 mod any_system;
 pub use any_system::AnySystem;
