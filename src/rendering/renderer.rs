@@ -4,7 +4,6 @@ use crate::{
         Triangle
     },
     */
-    graphics::Graphic,
     rendering::{
         backends::{
             BackendInterface,
@@ -31,8 +30,8 @@ impl Renderer {
         })
     }
 
-    pub fn render<T: Graphic>(&self, graphic: &T) {
-        self.backend.draw(graphic);
+    pub fn get_backend(&self) -> &Backend {
+        &self.backend
     }
 
     /*

@@ -1,6 +1,8 @@
-use crate::graphics::Graphic;
+use crate::rendering::RenderingRequirements;
 
 pub trait BackendInterface {
-    fn has_texture_available(&self) -> bool;
-    fn draw<T: Graphic>(&self, graphic: &T);
+    fn name() -> &'static str;
+    fn has_requirements(requirements: RenderingRequirements) -> bool;
+    //fn draw<T: Graphic>(&self, graphic: &T);
 }
+

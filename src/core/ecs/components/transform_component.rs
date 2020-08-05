@@ -30,6 +30,8 @@ impl Updatable for TransformComponent {
     }
 
     fn update(&mut self) {
+        self.position += Vector2::try_with(1i16, 2i16).unwrap();
+        println!("pos: {:?}", self.position);
     }
 
     fn late_update(&mut self) {

@@ -1,7 +1,8 @@
+use enumflags2::BitFlags;
 use crate::{
-    graphics::Graphic,
     rendering::{
-        BackendInterface
+        BackendInterface,
+        RenderingRequirements
     }
 };
 
@@ -15,11 +16,17 @@ impl NoBackend {
 }
 
 impl BackendInterface for NoBackend {
-    fn has_texture_available(&self) -> bool {
-        false
+    fn name() -> &'static str {
+        "NoBackend"
     }
 
-    fn draw<T: Graphic>(&self, _graphic: &T) {
-        // can't draw anything :/
+    fn has_requirements(requirements: RenderingRequirements) -> bool {
+        if BitFlags::from(requirements).contains(RenderingRequirements::Texture) {
+            // doesn't supports: 
+            //   * Texture
+            return false;
+        }
+
+        true
     }
 }

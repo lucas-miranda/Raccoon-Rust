@@ -1,9 +1,9 @@
 #![allow(unused_macros)]
 
-pub mod core;
-pub mod graphics;
-pub mod input;
 pub mod math;
-pub mod rendering;
 pub mod tools;
-
+pub mod core;
+pub mod input;
+#[macro_use]
+pub mod rendering;
+pub mod graphics;
