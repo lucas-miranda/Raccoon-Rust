@@ -1,12 +1,17 @@
 use std::any::Any;
-use crate::core::ecs::{
-    components::Updatable,
-    Component
+
+use crate::{
+    core::ecs::{
+        components::Updatable,
+        Component
+    },
+    math::{
+        Vector2
+    }
 };
 
 pub struct TransformComponent {
-    pub x: f32,
-    pub y: f32,
+    pub position: Vector2<f32>,
     pub rotation: f32
 }
 
@@ -34,8 +39,7 @@ impl Updatable for TransformComponent {
 impl TransformComponent {
     pub fn new() -> TransformComponent {
         TransformComponent {
-            x: 0f32,
-            y: 0f32,
+            position: Vector2::new(),
             rotation: 0f32
         }
     }
