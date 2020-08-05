@@ -27,7 +27,7 @@ pub struct UpdateSystem {
 impl System for UpdateSystem {
     type DataType = AnyDataContainer;
 
-    fn setup(&mut self, game_controller: &mut GameController) {
+    fn setup(&mut self, _game_controller: &mut GameController) {
         self.last_update_timer_checkpoint = Some(Instant::now());
     }
 

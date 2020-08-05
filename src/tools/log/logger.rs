@@ -23,7 +23,7 @@ impl Logger {
         self._listeners.clear();
     }
 
-    pub fn write(&mut self, context: &str, msg: &str) {
+    pub fn write(&mut self, context: &str, msg: &str) -> Result<(), Error> {
         let c = {
             if context.len() > 0 {
                 Some(context)
@@ -33,8 +33,10 @@ impl Logger {
         };
 
         for listener in self._listeners.iter_mut() {
-            listener.write(c, msg);
+            listener.write(c, msg)?;
         }
+
+        Ok(())
     }
 
     pub fn writeln(&mut self, context: &str, msg: &str) -> Result<(), Error> {
@@ -43,19 +45,19 @@ impl Logger {
 
         if context.len() > 0 {
             for listener in self._listeners.iter_mut() {
-                listener.write(Some("timestamp"), &timestamp);
-                listener.write(None, separation);
-                listener.write(Some(context), context);
-                listener.write(None, separation);
-                listener.write(None, msg);
-                listener.write(None, "\n");
+                listener.write(Some("timestamp"), &timestamp)?;
+                listener.write(None, separation)?;
+                listener.write(Some(context), context)?;
+                listener.write(None, separation)?;
+                listener.write(None, msg)?;
+                listener.write(None, "\n")?;
             }
         } else {
             for listener in self._listeners.iter_mut() {
-                listener.write(Some("timestamp"), &timestamp);
-                listener.write(None, separation);
-                listener.write(None, msg);
-                listener.write(None, "\n");
+                listener.write(Some("timestamp"), &timestamp)?;
+                listener.write(None, separation)?;
+                listener.write(None, msg)?;
+                listener.write(None, "\n")?;
             }
         }
 

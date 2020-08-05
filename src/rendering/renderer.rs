@@ -6,7 +6,6 @@ use crate::{
     */
     rendering::{
         backends::{
-            BackendInterface,
             Backend
         }
     }

@@ -11,7 +11,6 @@ use crate::{
             containers::{
                 SystemDataContainer
             },
-            Component,
             Entity,
             EntityId,
             System,
@@ -26,7 +25,6 @@ pub struct AnySystem {
     runner: Box<dyn FnMut(&mut Box<dyn Any>, &mut HashMap<EntityId, Entity>, &mut GameController)>
 }
 
-type ComponentCollection = Vec<Box<dyn Component>>;
 impl AnySystem {
     pub fn new<U: 'static + SystemDataContainer, T: System<DataType = U> + Any>(system: T) -> AnySystem {
         AnySystem {

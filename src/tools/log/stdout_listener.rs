@@ -24,10 +24,18 @@ impl LogListener for StdoutListener {
     fn write(&mut self, context: Option<&str>, msg: &str) -> Result<(), Error> {
         match context {
             Some(c) => {
-                match self._contexts.get(c) {
-                    Some(processor) => self.write_to_stdout(&processor(msg))?,
-                    None => self.write_to_stdout(msg)?
-                };
+                if let Some((name, processor)) = self._contexts.remove_entry(c) {
+                    match self.write_to_stdout(&processor(msg)) {
+                        Ok(()) => self._contexts.insert(name, processor),
+                        Err(e) => {
+                            self._contexts.insert(name, processor);
+                            return Err(e);
+                        }
+                    };
+                } else {
+                    self.write_to_stdout(msg)?;
+                }
+
                 Ok(())
             },
             None => {

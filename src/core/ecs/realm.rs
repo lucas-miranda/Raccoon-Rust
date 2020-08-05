@@ -28,7 +28,6 @@ pub struct Realm {
     next_entity_id: EntityId
 }
 
-type ComponentCollection = Vec<Box<dyn Component>>;
 impl Realm {
     pub fn new() -> Realm {
         Realm {

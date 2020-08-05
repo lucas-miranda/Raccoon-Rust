@@ -12,7 +12,7 @@ pub struct Image {
 }
 
 impl Renderable for Image {
-    fn render(&self, renderer: &Renderer) {
+    fn render(&self, _renderer: &Renderer) {
     }
 
     fn dispose(&mut self) {

@@ -24,11 +24,8 @@ impl error::Error for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.kind {
-            ErrorKind::IO(e) => e.fmt(f),
-            _ => write!(f, "Unknown log error.")
-        };
-
-        fmt::Result::Ok(())
+            ErrorKind::IO(e) => e.fmt(f)
+        }
     }
 }
 

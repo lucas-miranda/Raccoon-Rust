@@ -8,8 +8,7 @@ use raccoon_rust::{
             },
             Realm
         },
-    },
-    graphics::Image
+    }
 };
 
 fn main() {
@@ -34,8 +33,6 @@ fn main() {
                  .with_component(TransformComponent::new())
                  .with_component(GraphicRendererComponent::new())
                  .build();
-
-            let image = Image::new();
 
             game.start(realm);
         },
