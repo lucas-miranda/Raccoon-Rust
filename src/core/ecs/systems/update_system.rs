@@ -31,7 +31,7 @@ impl System for UpdateSystem {
         self.last_update_timer_checkpoint = Some(Instant::now());
     }
 
-    fn run(&mut self, any_components: &mut Self::DataType, game_controller: &mut GameController) {
+    fn run(&mut self, any_components: &mut Self::DataType, _game_controller: &mut GameController) {
         self.step_timer();
         //println!("dt: {:?}, et: {:?}", self.get_update_delta_time(), self.get_timer());
 
@@ -47,10 +47,12 @@ impl System for UpdateSystem {
                       .flatten()
                       .for_each(|component| component.late_update());
 
+        /*
         if self.timer.as_secs() >= 3 {
             println!("Timer test has ended!");
             game_controller.close_game();
         }
+        */
     }
 
     fn as_any(&self) -> &dyn Any {

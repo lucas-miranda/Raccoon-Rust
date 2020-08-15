@@ -1,4 +1,3 @@
-
 use std::{
     convert::{
         TryInto,
@@ -14,17 +13,16 @@ use std::{
     }
 };
 
-
-#[derive(Default, Debug, Copy, Clone)]
-pub struct Vector2<T> 
-  where T: Copy
+#[derive(PartialEq, Default, Debug, Copy, Clone)]
+pub struct Vector2<T> where 
+  T: Copy + PartialEq
 {
     x: T,
     y: T
 }
 
 impl<T> Add for Vector2<T> where
-  T: Add<Output = T> + Copy,
+  T: Add<Output = T> + Copy + PartialEq,
 {
     type Output = Self;
 
@@ -37,7 +35,7 @@ impl<T> Add for Vector2<T> where
 }
 
 impl<T> AddAssign for Vector2<T> where
-  T: Add<Output = T> + Copy
+  T: Add<Output = T> + Copy + PartialEq
 {
     fn add_assign(&mut self, other: Self) {
         self.x = self.x + other.x;
@@ -46,7 +44,7 @@ impl<T> AddAssign for Vector2<T> where
 }
 
 impl<T> AddAssign<T> for Vector2<T> where
-  T: Add<Output = T> + Copy
+  T: Add<Output = T> + Copy + PartialEq
 {
     fn add_assign(&mut self, other: T) {
         self.x = self.x + other;
@@ -55,7 +53,7 @@ impl<T> AddAssign<T> for Vector2<T> where
 }
 
 impl<T> Sub for Vector2<T> where
-  T: Sub<Output = T> + Copy,
+  T: Sub<Output = T> + Copy + PartialEq,
 {
     type Output = Self;
 
@@ -68,7 +66,7 @@ impl<T> Sub for Vector2<T> where
 }
 
 impl<T> Div for Vector2<T> where
-  T: Div<Output = T> + Copy,
+  T: Div<Output = T> + Copy + PartialEq,
 {
     type Output = Self;
 
@@ -81,7 +79,7 @@ impl<T> Div for Vector2<T> where
 }
 
 impl<T> Mul for Vector2<T> where
-  T: Mul<Output = T> + Copy,
+  T: Mul<Output = T> + Copy + PartialEq,
 {
     type Output = Self;
 
@@ -94,7 +92,7 @@ impl<T> Mul for Vector2<T> where
 }
 
 impl<T> Index<usize> for Vector2<T> where
-  T: Copy
+  T: Copy + PartialEq
 {
     type Output = T;
 
@@ -110,7 +108,7 @@ impl<T> Index<usize> for Vector2<T> where
 }
 
 impl<T> IndexMut<usize> for Vector2<T> where
-  T: Copy
+  T: Copy + PartialEq
 {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         if index == 0 {
@@ -123,14 +121,22 @@ impl<T> IndexMut<usize> for Vector2<T> where
     }
 }
 
+impl<T> From<(T, T)> for Vector2<T> where
+  T: Copy + PartialEq
+{
+    fn from(tuple: (T, T)) -> Self {
+        Vector2 {
+            x: tuple.0,
+            y: tuple.1
+        }
+    }
+}
+
 impl<T> Vector2<T> where 
-  T: Default + Copy,
+  T: Default + Copy + PartialEq
 {
     pub fn new() -> Self {
-        Vector2 {
-            x: T::default(),
-            y: T::default()
-        }
+        Vector2::<T>::default()
     }
 
     pub fn with(x: T, y: T) -> Self {
@@ -151,15 +157,12 @@ impl<T> Vector2<T> where
             Err(e) => return Err(e)
         };
 
-        Ok(Vector2 {
-            x: x_component,
-            y: y_component
-        })
+        Ok(Vector2::with(x_component, y_component))
     }
 }
 
 impl<T> Vector2<T> where
-  T: Copy
+  T: Copy + PartialEq
 {
     pub fn x(&self) -> T {
         self.x

@@ -19,6 +19,15 @@ use crate::{
             System,
         },
         GameController
+    },
+    events::Event,
+    input::{
+        InputEvent,
+        InputEventListener
+    },
+    window::{
+        WindowEvent,
+        WindowEventListener
     }
 };
 
@@ -26,6 +35,16 @@ pub struct Realm {
     systems: HashMap<String, AnySystem>,
     entities: Option<HashMap<EntityId, Entity>>,
     next_entity_id: EntityId
+}
+
+impl InputEventListener for Realm {
+    fn handle(&mut self, event: &mut Event<InputEvent>) {
+    }
+}
+
+impl WindowEventListener for Realm {
+    fn handle(&mut self, event: &mut Event<WindowEvent>) {
+    }
 }
 
 impl Realm {

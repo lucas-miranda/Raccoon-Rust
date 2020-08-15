@@ -34,7 +34,7 @@ fn main() {
                  .with_component(GraphicRendererComponent::new())
                  .build();
 
-            game.start(realm);
+            game.run(realm);
         },
         Err(e) => panic!(e)
     };

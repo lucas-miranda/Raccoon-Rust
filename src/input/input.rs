@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use crate::{
+    events::Event,
     input::{
+        InputEvent,
+        InputEventListener,
         Key,
         KeyCode
     }
@@ -9,6 +12,11 @@ use crate::{
 
 pub struct Input {
     _keys: HashMap<KeyCode, Key>
+}
+
+impl InputEventListener for Input {
+    fn handle(&mut self, event: &mut Event<InputEvent>) {
+    }
 }
 
 impl Input {

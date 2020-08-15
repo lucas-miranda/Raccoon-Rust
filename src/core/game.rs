@@ -1,3 +1,11 @@
+/*
+use winit::{
+    dpi::LogicalSize,
+    Event,
+    WindowEvent
+};
+*/
+
 use crate::{
     core::{
         ecs::{
@@ -8,48 +16,36 @@ use crate::{
         },
         GameController,
         GameError
-    },
-    /*
-    rendering::{
-        Renderer
-    },
-    tools::{
-        log::{
-            StdoutListener,
-            log_info
-        }
     }
-    */
 };
 
 pub struct Game {
-    realm: Option<Realm>
+    game_controller: Option<GameController>
 }
 
 impl Game {
     pub fn new() -> Result<Game, GameError> {
         Ok(Game { 
-            realm: None
+            game_controller: Some(GameController::new())
         })
     }
 
-    pub fn start(&mut self, mut realm: Realm) {
+    pub fn run(&mut self, mut realm: Realm) {
         // register default systems
         realm.register_system("update", UpdateSystem::new());
 
-        self.realm = Some(realm);
-        self.run();
-    }
-
-    fn run(&mut self) {
-        let mut game_controller = GameController::new();
-        let mut realm = self.realm.take()
-                                  .expect("Realm not found.");
+        let mut game_controller = self.game_controller
+                                      .take()
+                                      .expect("Game Controller not found.");
 
         realm.setup_systems(&mut game_controller);
         game_controller.start();
 
         while game_controller.is_running() {
+            game_controller.poll_events();
+            game_controller.handle_window_events(&mut realm);
+            game_controller.handle_input(&mut realm);
+
             realm.run_systems(&mut game_controller);
             //realm.upkeep();
         }
