@@ -22,7 +22,7 @@ pub struct GameController {
     input: Input,
     logger: Logger, 
     window: Option<Window>,
-    is_running: bool
+    pub is_running: bool
 }
 
 impl WindowEventListener for GameController {

@@ -1,5 +1,6 @@
 use std:: {
     any::Any,
+    cell::Ref,
     time::{
         Duration,
         Instant
@@ -27,11 +28,11 @@ pub struct UpdateSystem {
 impl System for UpdateSystem {
     type DataType = AnyDataContainer;
 
-    fn setup(&mut self, _game_controller: &mut GameController) {
+    fn setup(&mut self, _game_controller: &mut Ref<GameController>) {
         self.last_update_timer_checkpoint = Some(Instant::now());
     }
 
-    fn run(&mut self, any_components: &mut Self::DataType, _game_controller: &mut GameController) {
+    fn run(&mut self, any_components: &mut Self::DataType, _game_controller: &mut Ref<GameController>) {
         self.step_timer();
         //println!("dt: {:?}, et: {:?}", self.get_update_delta_time(), self.get_timer());
 

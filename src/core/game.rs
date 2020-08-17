@@ -1,10 +1,8 @@
-/*
-use winit::{
-    dpi::LogicalSize,
-    Event,
-    WindowEvent
+use std::{
+    borrow::Borrow,
+    cell::{ RefCell, RefMut },
+    rc::Rc
 };
-*/
 
 use crate::{
     core::{
@@ -20,35 +18,45 @@ use crate::{
 };
 
 pub struct Game {
-    game_controller: Option<GameController>
+    game_controller: Rc<RefCell<GameController>>
 }
 
 impl Game {
     pub fn new() -> Result<Game, GameError> {
         Ok(Game { 
-            game_controller: Some(GameController::new())
+            game_controller: Rc::new(RefCell::new(GameController::new()))
         })
     }
 
     pub fn run(&mut self, mut realm: Realm) {
+        realm.game_controller = Rc::downgrade(&self.game_controller);
+
         // register default systems
         realm.register_system("update", UpdateSystem::new());
 
-        let mut game_controller = self.game_controller
-                                      .take()
-                                      .expect("Game Controller not found.");
+        realm.setup_systems();
+        self.game_controller().start();
 
-        realm.setup_systems(&mut game_controller);
-        game_controller.start();
+        loop {
+            {
+                let mut game_controller = self.game_controller();
 
-        while game_controller.is_running() {
-            game_controller.poll_events();
-            game_controller.handle_window_events(&mut realm);
-            game_controller.handle_input(&mut realm);
+                game_controller.poll_events();
+                game_controller.handle_window_events(&mut realm);
+                game_controller.handle_input(&mut realm);
 
-            realm.run_systems(&mut game_controller);
+                if !game_controller.is_running() {
+                    break;
+                }
+            }
+
+            realm.run_systems();
             //realm.upkeep();
         }
+    }
+
+    fn game_controller(&self) -> RefMut<'_, GameController> {
+        <_ as Borrow<RefCell<GameController>>>::borrow(&self.game_controller).borrow_mut()
     }
 
     /*

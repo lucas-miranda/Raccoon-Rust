@@ -1,8 +1,13 @@
-use std::collections::{
-    hash_map::{
-        Values
+use std::{
+    borrow::BorrowMut,
+    cell::RefCell,
+    collections::{
+        hash_map::{
+            Values
+        },
+        HashMap
     },
-    HashMap
+    rc::Weak
 };
 
 use crate::{
@@ -32,6 +37,7 @@ use crate::{
 };
 
 pub struct Realm {
+    pub(in crate::core) game_controller: Weak<RefCell<GameController>>,
     systems: HashMap<String, AnySystem>,
     entities: Option<HashMap<EntityId, Entity>>,
     next_entity_id: EntityId
@@ -50,25 +56,36 @@ impl WindowEventListener for Realm {
 impl Realm {
     pub fn new() -> Realm {
         Realm {
+            game_controller: Weak::new(),
             systems: HashMap::new(),
             entities: Some(HashMap::new()),
             next_entity_id: 0u64
         }
     }
 
-    pub fn setup_systems(&mut self, game_controller: &mut GameController) {
-        for system in self.systems.values_mut() {
-            system.setup(game_controller);
+    pub fn setup_systems(&mut self) {
+        match self.game_controller.upgrade() {
+            Some(ref mut game_controller) => {
+                for system in self.systems.values_mut() {
+                    system.setup(game_controller.borrow().borrow_mut());
+                }
+            },
+            None => ()
         }
     }
 
-    pub fn run_systems(&mut self, game_controller: &mut GameController) {
+    pub fn run_systems(&mut self) {
         let mut entities_map = self.entities.take();
 
         match entities_map {
             Some(ref mut entities) => {
-                for system in self.systems.values_mut() {
-                    system.run(entities, game_controller);
+                match self.game_controller.upgrade() {
+                    Some(ref mut game_controller) => {
+                        for system in self.systems.values_mut() {
+                            system.run(entities, game_controller.borrow().borrow_mut());
+                        }
+                    },
+                    None => ()
                 }
             },
             None => panic!("Entities not found.")

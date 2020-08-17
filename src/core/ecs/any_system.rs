@@ -1,8 +1,9 @@
 use std::{
     any::Any,
+    cell::{ Ref },
     collections::{
         HashMap,
-    }
+    },
 };
 
 use crate::{
@@ -21,8 +22,8 @@ use crate::{
 
 pub struct AnySystem {
     sys: Option<Box<dyn Any>>,
-    setup: Box<dyn FnMut(&mut Box<dyn Any>, &mut GameController)>,
-    runner: Box<dyn FnMut(&mut Box<dyn Any>, &mut HashMap<EntityId, Entity>, &mut GameController)>
+    setup: Box<dyn FnMut(&mut Box<dyn Any>, &mut Ref<GameController>)>,
+    runner: Box<dyn FnMut(&mut Box<dyn Any>, &mut HashMap<EntityId, Entity>, &mut Ref<GameController>)>
 }
 
 impl AnySystem {
@@ -62,7 +63,7 @@ impl AnySystem {
         }
     }
 
-    pub fn setup(&mut self, game_utilities: &mut GameController) {
+    pub fn setup(&mut self, game_utilities: &mut Ref<GameController>) {
         let mut sys = self.sys.take();
 
         match &mut sys {
@@ -73,7 +74,7 @@ impl AnySystem {
         self.sys = sys;
     }
 
-    pub fn run<'a>(&mut self, entities: &'a mut HashMap<EntityId, Entity>, game_utilities: &mut GameController) {
+    pub fn run<'a>(&mut self, entities: &'a mut HashMap<EntityId, Entity>, game_utilities: &mut Ref<GameController>) {
         let mut sys = self.sys.take();
 
         match &mut sys {
