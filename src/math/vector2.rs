@@ -13,7 +13,7 @@ use std::{
     }
 };
 
-#[derive(PartialEq, Default, Debug, Copy, Clone)]
+#[derive(Default, Debug, PartialEq, Copy, Clone)]
 pub struct Vector2<T> where 
   T: Copy + PartialEq
 {

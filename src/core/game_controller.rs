@@ -107,11 +107,13 @@ impl GameController {
     pub(in crate::core) fn handle_input<T: InputEventListener>(&mut self, listener: &mut T) {
         match self.window {
             Some(ref mut window) => {
+
                 let mut listeners: Vec<Box<&mut dyn InputEventListener>> = Vec::new();
-                listeners.push(Box::new(&mut self.input));
+                //listeners.push(Box::new(&mut self.input));
                 listeners.push(Box::new(listener));
 
-                <Window as InputEventsHandler<_>>::handle_multiple(window, listeners);
+                //<Window as InputEventsHandler<_>>::handle_multiple(window, listeners);
+                window.redirect_input_events(&mut self.input, listeners);
             },
             None => ()
         };

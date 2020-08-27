@@ -15,6 +15,10 @@ impl<T> Event<T> {
         &self.kind
     }
 
+    pub fn kind_mut(&mut self) -> &mut T {
+        &mut self.kind
+    }
+
     pub fn is_consumed(&self) -> bool {
         self.consumed
     }

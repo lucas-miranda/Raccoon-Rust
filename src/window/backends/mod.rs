@@ -1,6 +1,9 @@
 mod input_events_handler;
 pub use input_events_handler::InputEventsHandler;
 
+mod input_events_indirect_handler;
+pub use input_events_indirect_handler::InputEventsIndirectHandler;
+
 mod window_events_handler;
 pub use window_events_handler::WindowEventsHandler;
 

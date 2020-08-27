@@ -45,6 +45,34 @@ pub struct Realm {
 
 impl InputEventListener for Realm {
     fn handle(&mut self, event: &mut Event<InputEvent>) {
+        match event.kind() {
+            InputEvent::MouseButton(e) => {
+                println!(
+                    "state: {:?}, button: {:?}, modifiers: {:?}",
+                    e.state,
+                    e.button,
+                    e.modifiers
+                );
+            },
+            InputEvent::Keyboard(e) => {
+                println!(
+                    "scan code: {:?}, state: {:?}, key: {:?}, modifiers: {:?}",
+                    e.scan_code,
+                    e.state,
+                    e.key,
+                    e.modifiers
+                );
+            },
+            InputEvent::MouseWheel { delta, phase, modifiers } => {
+                println!(
+                    "mouse wheel (delta: {:?}, phase: {:?}, modifiers: {:?})",
+                    delta,
+                    phase,
+                    modifiers
+                );
+            },
+            _ => ()
+        }
     }
 }
 

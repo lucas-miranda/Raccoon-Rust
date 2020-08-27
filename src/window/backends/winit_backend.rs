@@ -1,17 +1,29 @@
+use std::collections::HashMap;
+
 use winit::{
     dpi::{
+        LogicalPosition,
         LogicalSize
     },
     CreationError,
     EventsLoop,
-    //Event
+    VirtualKeyCode
 };
 
 use crate::{
     events::Event,
     input::{
+        ButtonState,
         InputEvent,
         InputEventListener,
+        KeyboardEvent,
+        KeyCode,
+        KeyModifiers,
+        MouseButton,
+        MouseButtonEvent,
+        MouseScrollDelta,
+        TouchEvent,
+        TouchPhase
     },
     math::{
         Size,
@@ -21,6 +33,7 @@ use crate::{
         backends::{
             BackendInterface,
             InputEventsHandler,
+            InputEventsIndirectHandler,
             WindowEventsHandler
         },
         WindowEvent,
@@ -28,27 +41,32 @@ use crate::{
     }
 };
 
+
 pub struct WinitBackend {
     events_loop: EventsLoop,
     winit_window: winit::Window,
     window_events: Vec<Event<WindowEvent>>,
+
+    // input
     input_events: Vec<Event<InputEvent>>
 }
 
 impl BackendInterface for WinitBackend {
     fn poll_events(&mut self) {
         let window_events = &mut self.window_events;
+        let input_events = &mut self.input_events;
+
         self.events_loop.poll_events(|e| {
             match e {
                 winit::Event::WindowEvent { window_id: _, event } => {
                     match event {
+                        // window events
+
                         winit::WindowEvent::Resized(new_size) => {
-                            let size: (u32, u32) = new_size.into();
-                            window_events.push(Event::new(WindowEvent::Resized(Size::from(size))));
+                            window_events.push(Event::new(WindowEvent::Resized(new_size.into())));
                         },
                         winit::WindowEvent::Moved(new_pos) => {
-                            let pos: (i32, i32) = new_pos.into();
-                            window_events.push(Event::new(WindowEvent::Moved(Vector2::from(pos))));
+                            window_events.push(Event::new(WindowEvent::Moved(new_pos.into())));
                         },
                         winit::WindowEvent::CloseRequested => {
                             window_events.push(Event::new(WindowEvent::CloseRequested));
@@ -74,12 +92,120 @@ impl BackendInterface for WinitBackend {
                         winit::WindowEvent::HiDpiFactorChanged(dpi) => {
                             window_events.push(Event::new(WindowEvent::HiDpiFactorChanged(dpi)));
                         },
-                        _ => ()
+
+                        // input events
+                        winit::WindowEvent::KeyboardInput { device_id: _, input } => {
+                            input_events.push(Event::new(InputEvent::Keyboard(
+                                KeyboardEvent::new(
+                                    input.scancode,
+                                    match input.state {
+                                        winit::ElementState::Pressed => ButtonState::Pressed,
+                                        winit::ElementState::Released => ButtonState::Released,
+                                    },
+                                    match input.virtual_keycode {
+                                        Some(winit_keycode) => Some(winit_keycode.into()),
+                                        None => None
+                                    },
+                                    input.modifiers.into()
+                                )
+                            )));
+                        },
+
+                        winit::WindowEvent::ReceivedCharacter(c) => {
+                            input_events.push(Event::new(InputEvent::ReceivedChar(c)));
+                        },
+
+                        winit::WindowEvent::MouseInput { device_id: _, state, button, modifiers } => {
+                            input_events.push(Event::new(InputEvent::MouseButton(
+                                MouseButtonEvent::new(
+                                    match state {
+                                        winit::ElementState::Pressed => ButtonState::Pressed,
+                                        winit::ElementState::Released => ButtonState::Released
+                                    },
+                                    match button {
+                                        winit::MouseButton::Left => MouseButton::Left,
+                                        winit::MouseButton::Right => MouseButton::Right,
+                                        winit::MouseButton::Middle => MouseButton::Middle,
+                                        winit::MouseButton::Other(id) => MouseButton::Other(id)
+                                    },
+                                    modifiers.into()
+                                )
+                            )));
+                        },
+
+                        winit::WindowEvent::MouseWheel { device_id: _, delta, phase, modifiers } => {
+                            input_events.push(Event::new(
+                                InputEvent::MouseWheel {
+                                    delta: match delta {
+                                        winit::MouseScrollDelta::LineDelta(x, y) => MouseScrollDelta::Line { horizontal: x, vertical: y },
+                                        winit::MouseScrollDelta::PixelDelta(value) => {
+                                            MouseScrollDelta::Pixel(value.into())
+                                        }
+                                    },
+                                    phase: phase.into(), 
+                                    modifiers: modifiers.into()
+                                }
+                            ));
+                        },
+
+                        winit::WindowEvent::CursorEntered { device_id: _ } => {
+                            input_events.push(Event::new(
+                                InputEvent::CursorEntered
+                            ));
+                        },
+
+                        winit::WindowEvent::CursorLeft { device_id: _ } => {
+                            input_events.push(Event::new(
+                                InputEvent::CursorLeft
+                            ));
+                        },
+
+                        winit::WindowEvent::CursorMoved { device_id: _, position, modifiers  } => {
+                            input_events.push(Event::new(
+                                InputEvent::CursorMoved {
+                                    position: position.into(),
+                                    modifiers: modifiers.into()
+                                },
+                            ));
+                        },
+
+                        winit::WindowEvent::TouchpadPressure { device_id: _, pressure, stage } => {
+                            input_events.push(Event::new(
+                                InputEvent::TouchpadPressure {
+                                    pressure,
+                                    stage
+                                }
+                            ));
+                        },
+
+                        winit::WindowEvent::Touch(touch) => {
+                            input_events.push(Event::new(
+                                InputEvent::Touch(TouchEvent::new(
+                                    touch.phase.into(),
+                                    touch.location.into(),
+                                    touch.id
+                                ))
+                            ));
+                        },
+
+                        winit::WindowEvent::AxisMotion { device_id: _, axis, value } => {
+                            input_events.push(Event::new(
+                                InputEvent::AxisMotion {
+                                    axis, 
+                                    value
+                                }
+                            ));
+                        }
                     }
                 },
                 _ => ()
             }
         });
+    }
+
+    fn redirect_input_events<T, H: InputEventsIndirectHandler<T>>(&mut self, handler: &mut H, listeners: Vec<T>) {
+        handler.handle_multiple(listeners, &mut self.input_events);
+        self.input_events.clear();
     }
 }
 
@@ -179,5 +305,216 @@ impl WinitBackend {
                       input_events: Vec::new()
                   }
               })
+    }
+}
+
+impl From<VirtualKeyCode> for KeyCode {
+    fn from(key: VirtualKeyCode) -> KeyCode {
+        match key {
+            VirtualKeyCode::Key1                 => KeyCode::D1,
+            VirtualKeyCode::Key2                 => KeyCode::D2,
+            VirtualKeyCode::Key3                 => KeyCode::D3,
+            VirtualKeyCode::Key4                 => KeyCode::D4,
+            VirtualKeyCode::Key5                 => KeyCode::D5,
+            VirtualKeyCode::Key6                 => KeyCode::D6,
+            VirtualKeyCode::Key7                 => KeyCode::D7,
+            VirtualKeyCode::Key8                 => KeyCode::D8,
+            VirtualKeyCode::Key9                 => KeyCode::D9,
+            VirtualKeyCode::Key0                 => KeyCode::D0,
+            VirtualKeyCode::A                    => KeyCode::A,
+            VirtualKeyCode::B                    => KeyCode::B,
+            VirtualKeyCode::C                    => KeyCode::C,
+            VirtualKeyCode::D                    => KeyCode::D,
+            VirtualKeyCode::E                    => KeyCode::E,
+            VirtualKeyCode::F                    => KeyCode::F,
+            VirtualKeyCode::G                    => KeyCode::G,
+            VirtualKeyCode::H                    => KeyCode::H,
+            VirtualKeyCode::I                    => KeyCode::I,
+            VirtualKeyCode::J                    => KeyCode::J,
+            VirtualKeyCode::K                    => KeyCode::K,
+            VirtualKeyCode::L                    => KeyCode::L,
+            VirtualKeyCode::M                    => KeyCode::M,
+            VirtualKeyCode::N                    => KeyCode::N,
+            VirtualKeyCode::O                    => KeyCode::O,
+            VirtualKeyCode::P                    => KeyCode::P,
+            VirtualKeyCode::Q                    => KeyCode::Q,
+            VirtualKeyCode::R                    => KeyCode::R,
+            VirtualKeyCode::S                    => KeyCode::S,
+            VirtualKeyCode::T                    => KeyCode::T,
+            VirtualKeyCode::U                    => KeyCode::U,
+            VirtualKeyCode::V                    => KeyCode::V,
+            VirtualKeyCode::W                    => KeyCode::W,
+            VirtualKeyCode::X                    => KeyCode::X,
+            VirtualKeyCode::Y                    => KeyCode::Y,
+            VirtualKeyCode::Z                    => KeyCode::Z,
+            VirtualKeyCode::Escape               => KeyCode::Escape,
+            VirtualKeyCode::F1                   => KeyCode::F1,
+            VirtualKeyCode::F2                   => KeyCode::F2,
+            VirtualKeyCode::F3                   => KeyCode::F3,
+            VirtualKeyCode::F4                   => KeyCode::F4,
+            VirtualKeyCode::F5                   => KeyCode::F5,
+            VirtualKeyCode::F6                   => KeyCode::F6,
+            VirtualKeyCode::F7                   => KeyCode::F7,
+            VirtualKeyCode::F8                   => KeyCode::F8,
+            VirtualKeyCode::F9                   => KeyCode::F9,
+            VirtualKeyCode::F10                  => KeyCode::F10,
+            VirtualKeyCode::F11                  => KeyCode::F11,
+            VirtualKeyCode::F12                  => KeyCode::F12,
+            VirtualKeyCode::F13                  => KeyCode::F13,
+            VirtualKeyCode::F14                  => KeyCode::F14,
+            VirtualKeyCode::F15                  => KeyCode::F15,
+            VirtualKeyCode::F16                  => KeyCode::F16,
+            VirtualKeyCode::F17                  => KeyCode::F17,
+            VirtualKeyCode::F18                  => KeyCode::F18,
+            VirtualKeyCode::F19                  => KeyCode::F19,
+            VirtualKeyCode::F20                  => KeyCode::F20,
+            VirtualKeyCode::F21                  => KeyCode::F21,
+            VirtualKeyCode::F22                  => KeyCode::F22,
+            VirtualKeyCode::F23                  => KeyCode::F23,
+            VirtualKeyCode::F24                  => KeyCode::F24,
+            VirtualKeyCode::Snapshot             => KeyCode::PrintScreen,
+            VirtualKeyCode::Scroll               => KeyCode::ScrollLock,
+            VirtualKeyCode::Pause                => KeyCode::PauseBreak,
+            VirtualKeyCode::Insert               => KeyCode::Insert,
+            VirtualKeyCode::Home                 => KeyCode::Home,
+            VirtualKeyCode::Delete               => KeyCode::Delete,
+            VirtualKeyCode::End                  => KeyCode::End,
+            VirtualKeyCode::PageDown             => KeyCode::PageDown,
+            VirtualKeyCode::PageUp               => KeyCode::PageUp,
+            VirtualKeyCode::Left                 => KeyCode::Left,
+            VirtualKeyCode::Up                   => KeyCode::Up,
+            VirtualKeyCode::Right                => KeyCode::Right,
+            VirtualKeyCode::Down                 => KeyCode::Down,
+            VirtualKeyCode::Back                 => KeyCode::Backspace,
+            VirtualKeyCode::Return               => KeyCode::Return,
+            VirtualKeyCode::Space                => KeyCode::Space,
+            VirtualKeyCode::Compose              => KeyCode::Compose,
+            VirtualKeyCode::Caret                => KeyCode::Caret,
+            VirtualKeyCode::Numlock              => KeyCode::Numlock,
+            VirtualKeyCode::Numpad0              => KeyCode::Numpad0,
+            VirtualKeyCode::Numpad1              => KeyCode::Numpad1,
+            VirtualKeyCode::Numpad2              => KeyCode::Numpad2,
+            VirtualKeyCode::Numpad3              => KeyCode::Numpad3,
+            VirtualKeyCode::Numpad4              => KeyCode::Numpad4,
+            VirtualKeyCode::Numpad5              => KeyCode::Numpad5,
+            VirtualKeyCode::Numpad6              => KeyCode::Numpad6,
+            VirtualKeyCode::Numpad7              => KeyCode::Numpad7,
+            VirtualKeyCode::Numpad8              => KeyCode::Numpad8,
+            VirtualKeyCode::Numpad9              => KeyCode::Numpad9,
+            VirtualKeyCode::AbntC1               => KeyCode::AbntC1,
+            VirtualKeyCode::AbntC2               => KeyCode::AbntC2,
+            VirtualKeyCode::Add                  => KeyCode::Add,
+            VirtualKeyCode::Apostrophe           => KeyCode::Apostrophe,
+            VirtualKeyCode::Apps                 => KeyCode::Apps,
+            VirtualKeyCode::At                   => KeyCode::At,
+            VirtualKeyCode::Ax                   => KeyCode::Ax,
+            VirtualKeyCode::Backslash            => KeyCode::Backslash,
+            VirtualKeyCode::Calculator           => KeyCode::Calculator,
+            VirtualKeyCode::Capital              => KeyCode::Capital,
+            VirtualKeyCode::Colon                => KeyCode::Colon,
+            VirtualKeyCode::Comma                => KeyCode::Comma,
+            VirtualKeyCode::Convert              => KeyCode::Convert,
+            VirtualKeyCode::Decimal              => KeyCode::Decimal,
+            VirtualKeyCode::Divide               => KeyCode::Divide,
+            VirtualKeyCode::Equals               => KeyCode::Equals,
+            VirtualKeyCode::Grave                => KeyCode::Grave,
+            VirtualKeyCode::Kana                 => KeyCode::Kana,
+            VirtualKeyCode::Kanji                => KeyCode::Kanji,
+            VirtualKeyCode::LAlt                 => KeyCode::LeftAlt,
+            VirtualKeyCode::LBracket             => KeyCode::LeftBracket,
+            VirtualKeyCode::LControl             => KeyCode::LeftControl,
+            VirtualKeyCode::LShift               => KeyCode::LeftShift,
+            VirtualKeyCode::LWin                 => KeyCode::LeftCommand,
+            VirtualKeyCode::Mail                 => KeyCode::Mail,
+            VirtualKeyCode::MediaSelect          => KeyCode::MediaSelect,
+            VirtualKeyCode::MediaStop            => KeyCode::MediaStop,
+            VirtualKeyCode::Minus                => KeyCode::Minus,
+            VirtualKeyCode::Multiply             => KeyCode::Multiply,
+            VirtualKeyCode::Mute                 => KeyCode::Mute,
+            VirtualKeyCode::MyComputer           => KeyCode::MyComputer,
+            VirtualKeyCode::NavigateForward      => KeyCode::NavigateForward,
+            VirtualKeyCode::NavigateBackward     => KeyCode::NavigateBackward, 
+            VirtualKeyCode::NextTrack            => KeyCode::NextTrack,
+            VirtualKeyCode::NoConvert            => KeyCode::NoConvert,
+            VirtualKeyCode::NumpadComma          => KeyCode::NumpadComma,
+            VirtualKeyCode::NumpadEnter          => KeyCode::NumpadEnter,
+            VirtualKeyCode::NumpadEquals         => KeyCode::NumpadEquals,
+            VirtualKeyCode::OEM102               => KeyCode::OEM102,
+            VirtualKeyCode::Period               => KeyCode::Period,
+            VirtualKeyCode::PlayPause            => KeyCode::PlayPause,
+            VirtualKeyCode::Power                => KeyCode::Power,
+            VirtualKeyCode::PrevTrack            => KeyCode::PrevTrack,
+            VirtualKeyCode::RAlt                 => KeyCode::RightAlt,
+            VirtualKeyCode::RBracket             => KeyCode::RightBracket,
+            VirtualKeyCode::RControl             => KeyCode::RightControl,
+            VirtualKeyCode::RShift               => KeyCode::RightShift,
+            VirtualKeyCode::RWin                 => KeyCode::RightCommand,
+            VirtualKeyCode::Semicolon            => KeyCode::Semicolon,
+            VirtualKeyCode::Slash                => KeyCode::Slash,
+            VirtualKeyCode::Sleep                => KeyCode::Sleep,
+            VirtualKeyCode::Stop                 => KeyCode::Stop,
+            VirtualKeyCode::Subtract             => KeyCode::Subtract,
+            VirtualKeyCode::Sysrq                => KeyCode::Sysrq,
+            VirtualKeyCode::Tab                  => KeyCode::Tab,
+            VirtualKeyCode::Underline            => KeyCode::Underline,
+            VirtualKeyCode::Unlabeled            => KeyCode::Unlabeled,
+            VirtualKeyCode::VolumeDown           => KeyCode::VolumeDown,
+            VirtualKeyCode::VolumeUp             => KeyCode::VolumeUp,
+            VirtualKeyCode::Wake                 => KeyCode::Wake,
+            VirtualKeyCode::WebBack              => KeyCode::WebBack,
+            VirtualKeyCode::WebFavorites         => KeyCode::WebFavorites,
+            VirtualKeyCode::WebForward           => KeyCode::WebForward,
+            VirtualKeyCode::WebHome              => KeyCode::WebHome,
+            VirtualKeyCode::WebRefresh           => KeyCode::WebRefresh,
+            VirtualKeyCode::WebSearch            => KeyCode::WebSearch,
+            VirtualKeyCode::WebStop              => KeyCode::WebStop,
+            VirtualKeyCode::Yen                  => KeyCode::Yen,
+            VirtualKeyCode::Copy                 => KeyCode::Copy,
+            VirtualKeyCode::Paste                => KeyCode::Paste,
+            VirtualKeyCode::Cut                  => KeyCode::Cut,
+        }
+    }
+}
+
+impl From<winit::ModifiersState> for KeyModifiers {
+    fn from(modifiers: winit::ModifiersState) -> KeyModifiers {
+        KeyModifiers {
+            ctrl:    modifiers.ctrl,
+            shift:   modifiers.shift,
+            alt:     modifiers.alt,
+            command: modifiers.logo
+        }
+    }
+}
+
+impl From<LogicalPosition> for Vector2<i32> {
+    fn from(logical_pos: LogicalPosition) -> Vector2<i32> {
+        let decomposed_position: (i32, i32) = logical_pos.into();
+        Vector2::from(decomposed_position)
+    }
+}
+
+impl From<LogicalPosition> for Vector2<f64> {
+    fn from(logical_pos: LogicalPosition) -> Vector2<f64> {
+        let decomposed_position: (f64, f64) = logical_pos.into();
+        Vector2::from(decomposed_position)
+    }
+}
+
+impl From<LogicalSize> for Size<u32> {
+    fn from(logical_size: LogicalSize) -> Size<u32> {
+        let decomposed_size: (u32, u32) = logical_size.into();
+        Size::from(decomposed_size)
+    }
+}
+
+impl From<winit::TouchPhase> for TouchPhase {
+    fn from(phase: winit::TouchPhase) -> TouchPhase {
+        match phase {
+            winit::TouchPhase::Started   => TouchPhase::Started,
+            winit::TouchPhase::Moved     => TouchPhase::Moved,
+            winit::TouchPhase::Ended     => TouchPhase::Ended,
+            winit::TouchPhase::Cancelled => TouchPhase::Cancelled
+        }
     }
 }
