@@ -1,3 +1,8 @@
+use std::{
+    cell::RefCell,
+    rc::Weak
+};
+
 use crate::{
     events::Event,
     input::{
@@ -18,14 +23,14 @@ use crate::{
     }
 };
 
-pub struct GameController {
+pub struct GameState {
     input: Input,
     logger: Logger, 
-    window: Option<Window>,
-    pub is_running: bool
+    //window: Weak<RefCell<Window>>,
+    is_running: bool
 }
 
-impl WindowEventListener for GameController {
+impl WindowEventListener for GameState {
     fn handle(&mut self, event: &mut Event<WindowEvent>) {
         match event.kind() {
             WindowEvent::CloseRequested => {
@@ -38,12 +43,12 @@ impl WindowEventListener for GameController {
     }
 }
 
-impl GameController {
-    pub fn new() -> GameController {
-        GameController {
+impl GameState {
+    pub fn new() -> GameState {
+        GameState {
             input: Input::new(),
             logger: Logger::new(),
-            window: Some(Window::default()),
+            //window: Some(window),
             is_running: false
         }
     }
@@ -60,6 +65,7 @@ impl GameController {
         &self.logger
     }
 
+    /*
     pub fn window(&self) -> &Option<Window> {
         &self.window
     }
@@ -67,6 +73,7 @@ impl GameController {
     pub fn window_mut(&mut self) -> &mut Option<Window> {
         &mut self.window
     }
+    */
 
     pub fn is_running(&self) -> bool {
         self.is_running
@@ -80,6 +87,7 @@ impl GameController {
         self.is_running = true;
     }
 
+    /*
     pub(in crate::core) fn poll_events(&mut self) {
         match self.window {
             Some(ref mut window) => window.poll_events(),
@@ -118,6 +126,7 @@ impl GameController {
             None => ()
         };
     }
+    */
 
     /*
     pub(in crate::core) fn handle_events<T: WindowEventListener>(&mut self, listener: T) {

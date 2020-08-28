@@ -8,12 +8,8 @@ use crate::{
         backends::{
             Backend
         }
-    }
-    /*
-    window::{
-        Window
-    }
-    */
+    },
+    window::Window
 };
 
 pub struct Renderer {
@@ -21,8 +17,15 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new() -> Result<Self, &'static str> {
-        let backend = Backend::new()?;
+    pub fn new(window: Option<&Window>) -> Result<Self, &'static str> {
+        let backend = if cfg!(feature = "no-backend") {
+            Backend::new(None)?
+        } else {
+            match window {
+                Some(w) => Backend::new(Some(w))?,
+                None => return Err("Window reference not found")
+            }
+        };
 
         Ok(Self {
             backend: backend

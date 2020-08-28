@@ -1,16 +1,39 @@
-use std::collections::HashMap;
+use std::{
+    borrow::Borrow,
+    collections::HashMap,
+    cell::{ RefCell, RefMut },
+    rc::{ Rc, Weak }
+};
+
+use raw_window_handle::{
+    HasRawWindowHandle,
+    RawWindowHandle
+};
 
 use winit::{
     dpi::{
         LogicalPosition,
-        LogicalSize
+        LogicalSize,
+        Pixel
     },
-    CreationError,
-    EventsLoop,
-    VirtualKeyCode
+    error::{
+        OsError
+    },
+    event::{
+        VirtualKeyCode
+    },
+    event_loop::{
+        ControlFlow,
+        EventLoop
+    },
+    window::WindowBuilder
 };
 
 use crate::{
+    core::{
+        ecs::Realm,
+        GameState
+    },
     events::Event,
     input::{
         ButtonState,
@@ -43,15 +66,64 @@ use crate::{
 
 
 pub struct WinitBackend {
-    events_loop: EventsLoop,
-    winit_window: winit::Window,
-    window_events: Vec<Event<WindowEvent>>,
+    event_loop: Option<EventLoop<()>>,
+    winit_window: winit::window::Window,
+    //window_events: Vec<Event<WindowEvent>>,
 
     // input
-    input_events: Vec<Event<InputEvent>>
+    //input_events: Vec<Event<InputEvent>>
+}
+
+unsafe impl HasRawWindowHandle for WinitBackend {
+    fn raw_window_handle(&self) -> RawWindowHandle {
+        self.winit_window.raw_window_handle()
+    }
 }
 
 impl BackendInterface for WinitBackend {
+    fn run(&mut self, game_state: Weak<RefCell<GameState>>, realm: Realm) {
+        let event_loop = self.event_loop.take()
+                                        .expect("Expecting winit event loop.");
+
+        event_loop.run(move |event, _, control_flow| {
+            *control_flow = ControlFlow::Poll;
+
+            match game_state.upgrade() {
+                Some(ref mut game_state_strong_ref) => {
+                    let mut state = <_ as Borrow<RefCell<GameState>>>::borrow(game_state_strong_ref)
+                                                                      .borrow_mut();
+                    match event {
+                        winit::event::Event::WindowEvent { window_id: _,  event } => {
+                            match event {
+                                winit::event::WindowEvent::CloseRequested => {
+                                    println!("Close was requested by system.");
+                                    state.close_game();
+                                },
+                                _ => ()
+                            }
+                        },
+                        _ => ()
+                    }
+
+                    if !state.is_running() {
+                        if let ControlFlow::Exit = *control_flow {
+                        } else {
+                            println!("Close was requested by user.");
+                        }
+
+                        *control_flow = ControlFlow::Exit;
+                    }
+                },
+                None => {
+                    eprintln!("Failed retrieving game state from winit backend.");
+                    *control_flow = ControlFlow::Exit;
+                    return;
+                }
+            };
+        });
+    }
+
+    /*
     fn poll_events(&mut self) {
         let window_events = &mut self.window_events;
         let input_events = &mut self.input_events;
@@ -202,13 +274,17 @@ impl BackendInterface for WinitBackend {
             }
         });
     }
+    */
 
+    /*
     fn redirect_input_events<T, H: InputEventsIndirectHandler<T>>(&mut self, handler: &mut H, listeners: Vec<T>) {
         handler.handle_multiple(listeners, &mut self.input_events);
         self.input_events.clear();
     }
+    */
 }
 
+/*
 impl<T: InputEventListener> InputEventsHandler<T> for WinitBackend {
     fn handle(&mut self, listener: &mut T) {
         for event in self.input_events.iter_mut() {
@@ -288,23 +364,24 @@ impl WindowEventsHandler<Box<&mut dyn WindowEventListener>> for WinitBackend {
         self.window_events.clear();
     }
 }
+*/
 
 impl WinitBackend {
-    pub fn new<T: Into<String>>(window_title: T, size: Size<u32>) -> Result<Self, CreationError> {
-        let events_loop = EventsLoop::new();
+    pub fn new<T: Into<String>>(window_title: T, size: Size<u32>) -> Result<Self, OsError> {
+        let event_loop = EventLoop::new();
 
-        winit::WindowBuilder::new()
-              .with_title(&window_title.into())
-              .with_dimensions(LogicalSize { width: size.width().into(), height: size.height().into() })
-              .build(&events_loop)
-              .map(|winit_window| {
-                  Self {
-                      events_loop,
-                      winit_window,
-                      window_events: Vec::new(),
-                      input_events: Vec::new()
-                  }
-              })
+        WindowBuilder::new()
+          .with_title(&window_title.into())
+          .with_inner_size(winit::dpi::Size::Logical(size.into()))
+          .build(&event_loop)
+          .map(|winit_window| {
+              Self {
+                  event_loop: Some(event_loop),
+                  winit_window
+                  //window_events: Vec::new(),
+                  //input_events: Vec::new()
+              }
+          })
     }
 }
 
@@ -476,6 +553,7 @@ impl From<VirtualKeyCode> for KeyCode {
     }
 }
 
+/*
 impl From<winit::ModifiersState> for KeyModifiers {
     fn from(modifiers: winit::ModifiersState) -> KeyModifiers {
         KeyModifiers {
@@ -486,28 +564,41 @@ impl From<winit::ModifiersState> for KeyModifiers {
         }
     }
 }
+*/
 
-impl From<LogicalPosition> for Vector2<i32> {
-    fn from(logical_pos: LogicalPosition) -> Vector2<i32> {
+/*
+impl From<LogicalPosition<i32>> for Vector2<i32> {
+    fn from(logical_pos: LogicalPosition<i32>) -> Vector2<i32> {
+        let decomposed_position: (i32, i32) = logical_pos.into();
+        Vector2::from(decomposed_position)
+    }
+}
+*/
+
+impl From<LogicalPosition<f64>> for Vector2<i32> {
+    fn from(logical_pos: LogicalPosition<f64>) -> Vector2<i32> {
         let decomposed_position: (i32, i32) = logical_pos.into();
         Vector2::from(decomposed_position)
     }
 }
 
-impl From<LogicalPosition> for Vector2<f64> {
-    fn from(logical_pos: LogicalPosition) -> Vector2<f64> {
-        let decomposed_position: (f64, f64) = logical_pos.into();
-        Vector2::from(decomposed_position)
-    }
-}
-
-impl From<LogicalSize> for Size<u32> {
-    fn from(logical_size: LogicalSize) -> Size<u32> {
+impl From<LogicalSize<f64>> for Size<u32> {
+    fn from(logical_size: LogicalSize<f64>) -> Size<u32> {
         let decomposed_size: (u32, u32) = logical_size.into();
         Size::from(decomposed_size)
     }
 }
 
+impl From<Size<u32>> for LogicalSize<f64> {
+    fn from(size: Size<u32>) -> LogicalSize<f64> {
+        LogicalSize {
+            width: size.width().into(),
+            height: size.height().into(),
+        }
+    }
+}
+
+/*
 impl From<winit::TouchPhase> for TouchPhase {
     fn from(phase: winit::TouchPhase) -> TouchPhase {
         match phase {
@@ -518,3 +609,4 @@ impl From<winit::TouchPhase> for TouchPhase {
         }
     }
 }
+*/

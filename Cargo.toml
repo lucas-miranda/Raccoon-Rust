@@ -7,25 +7,26 @@ license = "MIT"
 
 [features]
 default = []
-metal = ["winit", "shaderc", "gfx-hal", "gfx-backend-metal"]
-dx12 = ["winit", "shaderc", "gfx-hal", "gfx-backend-dx12"]
-vulkan = ["winit", "shaderc", "gfx-hal", "gfx-backend-vulkan"]
-gl = ["winit", "shaderc", "gfx-hal", "gfx-backend-gl"]
+metal = ["winit", "raw-window-handle", "shaderc", "gfx-hal", "gfx-backend-metal"]
+dx12 = ["winit", "raw-window-handle", "shaderc", "gfx-hal", "gfx-backend-dx12"]
+vulkan = ["winit", "raw-window-handle", "shaderc", "gfx-hal", "gfx-backend-vulkan"]
+gl = ["winit", "raw-window-handle", "shaderc", "gfx-hal", "gfx-backend-gl"]
 no-backend = []
 
 [dependencies]
-chrono = ">= 0.4"
-colored = ">= 1.9"
-arrayvec = "0.4"
-winit = { version = "0.18", optional = true }
-shaderc = { version = "0.3", optional = true }
-gfx-hal = { version = "0.1", optional = true }
-gfx-backend-gl = { version = "0.1", optional = true } 
-gfx-backend-vulkan = { version = "0.1", optional = true }
+chrono = "^0.4"
+colored = "^1.9"
+arrayvec = "^0.5"
+raw-window-handle = { version = "^0.3", optional = true }
+winit = { version = "^0.22", optional = true }
+shaderc = { version = "^0.6", optional = true }
+gfx-hal = { version = "^0.6", optional = true }
+gfx-backend-gl = { version = "^0.5", optional = true } 
+gfx-backend-vulkan = { version = "^0.6", optional = true }
 enumflags2 = "^0.6"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-gfx-backend-metal = { version = "0.1", optional = true }
+gfx-backend-metal = { version = "^0.6", optional = true }
 
 [target.'cfg(windows)'.dependencies]
-gfx-backend-dx12 = { version = "0.1", optional = true }
+gfx-backend-dx12 = { version = "^0.6", optional = true }

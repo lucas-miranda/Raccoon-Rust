@@ -1,0 +1,11 @@
+[package]
+name = "vulkan-test"
+version = "0.1.0"
+authors = ["Lucas Miranda <miranda.a.lucas@gmail.com>"]
+edition = "2018"
+
+[features]
+default = ["raccoon-rust/vulkan"]
+
+[dependencies]
+raccoon-rust = { path = "../..", version = "*"}

@@ -16,14 +16,14 @@ use crate::{
             EntityId,
             System,
         },
-        GameController
+        GameState
     }
 };
 
 pub struct AnySystem {
     sys: Option<Box<dyn Any>>,
-    setup: Box<dyn FnMut(&mut Box<dyn Any>, &mut Ref<GameController>)>,
-    runner: Box<dyn FnMut(&mut Box<dyn Any>, &mut HashMap<EntityId, Entity>, &mut Ref<GameController>)>
+    setup: Box<dyn FnMut(&mut Box<dyn Any>, &mut Ref<GameState>)>,
+    runner: Box<dyn FnMut(&mut Box<dyn Any>, &mut HashMap<EntityId, Entity>, &mut Ref<GameState>)>
 }
 
 impl AnySystem {
@@ -63,7 +63,7 @@ impl AnySystem {
         }
     }
 
-    pub fn setup(&mut self, game_utilities: &mut Ref<GameController>) {
+    pub fn setup(&mut self, game_utilities: &mut Ref<GameState>) {
         let mut sys = self.sys.take();
 
         match &mut sys {
@@ -74,7 +74,7 @@ impl AnySystem {
         self.sys = sys;
     }
 
-    pub fn run<'a>(&mut self, entities: &'a mut HashMap<EntityId, Entity>, game_utilities: &mut Ref<GameController>) {
+    pub fn run<'a>(&mut self, entities: &'a mut HashMap<EntityId, Entity>, game_utilities: &mut Ref<GameState>) {
         let mut sys = self.sys.take();
 
         match &mut sys {

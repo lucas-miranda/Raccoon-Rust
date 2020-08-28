@@ -23,7 +23,7 @@ use crate::{
             EntityBuilder,
             System,
         },
-        GameController
+        GameState
     },
     events::Event,
     input::{
@@ -37,7 +37,7 @@ use crate::{
 };
 
 pub struct Realm {
-    pub(in crate::core) game_controller: Weak<RefCell<GameController>>,
+    pub(in crate::core) game_state: Weak<RefCell<GameState>>,
     systems: HashMap<String, AnySystem>,
     entities: Option<HashMap<EntityId, Entity>>,
     next_entity_id: EntityId
@@ -84,7 +84,7 @@ impl WindowEventListener for Realm {
 impl Realm {
     pub fn new() -> Realm {
         Realm {
-            game_controller: Weak::new(),
+            game_state: Weak::new(),
             systems: HashMap::new(),
             entities: Some(HashMap::new()),
             next_entity_id: 0u64
@@ -92,10 +92,10 @@ impl Realm {
     }
 
     pub fn setup_systems(&mut self) {
-        match self.game_controller.upgrade() {
-            Some(ref mut game_controller) => {
+        match self.game_state.upgrade() {
+            Some(ref mut game_state) => {
                 for system in self.systems.values_mut() {
-                    system.setup(game_controller.borrow().borrow_mut());
+                    system.setup(game_state.borrow().borrow_mut());
                 }
             },
             None => ()
@@ -107,10 +107,10 @@ impl Realm {
 
         match entities_map {
             Some(ref mut entities) => {
-                match self.game_controller.upgrade() {
-                    Some(ref mut game_controller) => {
+                match self.game_state.upgrade() {
+                    Some(ref mut game_state) => {
                         for system in self.systems.values_mut() {
-                            system.run(entities, game_controller.borrow().borrow_mut());
+                            system.run(entities, game_state.borrow().borrow_mut());
                         }
                     },
                     None => ()

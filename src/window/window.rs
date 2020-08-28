@@ -1,4 +1,19 @@
+use std::{
+    borrow::Borrow,
+    cell::{ RefCell, RefMut },
+    rc::{ Rc, Weak }
+};
+
+use raw_window_handle::{
+    HasRawWindowHandle,
+    RawWindowHandle
+};
+
 use crate::{
+    core::{
+        ecs::Realm,
+        GameState,
+    },
     input::InputEventListener,
     math::{
         Size
@@ -16,7 +31,7 @@ use crate::{
 };
 
 pub struct Window {
-    backend: Backend
+    backend: Rc<RefCell<Backend>>
     //title: String
 }
 
@@ -30,6 +45,16 @@ impl Default for Window {
     }
 }
 
+unsafe impl HasRawWindowHandle for Window {
+    fn raw_window_handle(&self) -> RawWindowHandle {
+        let backend = <_ as Borrow<RefCell<Backend>>>::borrow(&self.backend)
+                                                      .borrow();
+
+        backend.raw_window_handle()
+    }
+}
+
+/*
 impl<T: InputEventListener> InputEventsHandler<T> for Window {
     fn handle(&mut self, listener: &mut T) {
         <Backend as InputEventsHandler<T>>::handle(&mut self.backend, listener);
@@ -69,30 +94,35 @@ impl WindowEventsHandler<Box<&mut dyn WindowEventListener>> for Window {
         <Backend as WindowEventsHandler<Box<&mut dyn WindowEventListener>>>::handle_multiple(&mut self.backend, listeners);
     }
 }
+*/
 
 impl Window {
     pub fn new<T: Into<String>>(title: T, size: Size<u32>) -> Result<Self, ()> {
         match Backend::new(title, size) {
             Ok(backend) => Ok(
                 Window {
-                    backend,
+                    backend: Rc::new(RefCell::new(backend)),
                 }
             ),
             Err(e) => Err(())
         }
     }
 
-    pub fn backend(&self) -> &Backend {
-        &self.backend
+    pub fn new_backend_weak_ref(&self) -> Weak<RefCell<Backend>> {
+        Rc::downgrade(&self.backend)
     }
 
-    pub fn poll_events(&mut self) {
-        self.backend.poll_events();
+    /*
+    pub fn run(&mut self, game_state: Rc<RefCell<GameState>>, realm: Realm) {
+        self.backend.run();
     }
+    */
 
+    /*
     pub fn redirect_input_events<T, H: InputEventsIndirectHandler<T>>(&mut self, handler: &mut H, listeners: Vec<T>) {
         self.backend.redirect_input_events(handler, listeners);
     }
+    */
 
     /*
     pub fn get_title(&self) -> &String {

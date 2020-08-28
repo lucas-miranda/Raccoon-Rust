@@ -12,40 +12,60 @@ use crate::{
             },
             Realm
         },
-        GameController,
+        GameState,
         GameError
+    },
+    window::{
+        backends::BackendInterface,
+        Window
     }
 };
 
 pub struct Game {
-    game_controller: Rc<RefCell<GameController>>
+    game_state: Rc<RefCell<GameState>>,
+    window: Window
 }
 
 impl Game {
     pub fn new() -> Result<Game, GameError> {
         Ok(Game { 
-            game_controller: Rc::new(RefCell::new(GameController::new()))
+            game_state: Rc::new(RefCell::new(GameState::new())),
+            window: Window::default()
         })
     }
 
     pub fn run(&mut self, mut realm: Realm) {
-        realm.game_controller = Rc::downgrade(&self.game_controller);
+        realm.game_state = Rc::downgrade(&self.game_state);
 
         // register default systems
         realm.register_system("update", UpdateSystem::new());
 
         realm.setup_systems();
-        self.game_controller().start();
+        <_ as Borrow<RefCell<GameState>>>::borrow(&self.game_state)
+                                          .borrow_mut()
+                                          .start();
 
+        // 
+
+        match self.window.new_backend_weak_ref().upgrade() {
+            Some(ref window) => {
+                <_ as Borrow<RefCell<crate::window::backends::Backend>>>::borrow(window)
+                      .borrow_mut()
+                      .run(Rc::downgrade(&self.game_state), realm);
+            },
+            None => ()
+        }
+
+        /*
         loop {
             {
-                let mut game_controller = self.game_controller();
+                let mut game_state = self.game_state();
 
-                game_controller.poll_events();
-                game_controller.handle_window_events(&mut realm);
-                game_controller.handle_input(&mut realm);
+                game_state.poll_events();
+                game_state.handle_window_events(&mut realm);
+                game_state.handle_input(&mut realm);
 
-                if !game_controller.is_running() {
+                if !game_state.is_running() {
                     break;
                 }
             }
@@ -53,11 +73,14 @@ impl Game {
             realm.run_systems();
             //realm.upkeep();
         }
+        */
     }
 
-    fn game_controller(&self) -> RefMut<'_, GameController> {
-        <_ as Borrow<RefCell<GameController>>>::borrow(&self.game_controller).borrow_mut()
+    /*
+    fn game_state(&self) -> RefMut<'_, GameState> {
+        <_ as Borrow<RefCell<GameState>>>::borrow(&self.game_state).borrow_mut()
     }
+    */
 
     /*
     pub fn render(&mut self, renderer: &mut Renderer) -> Result<(), &'static str> {

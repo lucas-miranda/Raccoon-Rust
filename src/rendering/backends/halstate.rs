@@ -1,16 +1,9 @@
-#[allow(unused_imports)]
-use log:: {
-    debug,
-    error,
-    info,
-    trace,
-    warn
-};
-
 #[cfg(feature = "dx12")]
 use gfx_backend_dx12 as back;
+
 #[cfg(feature = "metal")]
 use gfx_backend_metal as back;
+
 #[cfg(feature = "vulkan")]
 use gfx_backend_vulkan as back;
 
@@ -24,7 +17,6 @@ use core::mem::{
 use gfx_hal::{
     adapter::{
         Adapter,
-        MemoryTypeId,
         PhysicalDevice
     },
     buffer::Usage as BufferUsage,
@@ -33,7 +25,7 @@ use gfx_hal::{
         ClearValue,
         CommandBuffer,
         MultiShot,
-        Primary
+        Level
     },
     device::{
         Device
@@ -80,6 +72,7 @@ use gfx_hal::{
     },
     window::{
         Backbuffer,
+        CompositeAlphaMode,
         Extent2D,
         FrameSync,
         PresentMode,
@@ -90,6 +83,7 @@ use gfx_hal::{
     Gpu,
     Graphics,
     Instance,
+    MemoryTypeId,
     Primitive,
     QueueFamily,
     Surface
@@ -106,9 +100,9 @@ use crate::{
     }
 };
 
-static VERTEX_SOURCE: &'static str = include_str!("../resources/shaders/basic_shader.vert");
+static VERTEX_SOURCE: &'static str = include_str!("../../resources/shaders/basic_shader.vert");
 
-static FRAGMENT_SOURCE: &'static str = include_str!("../resources/shaders/basic_shader.frag");
+static FRAGMENT_SOURCE: &'static str = include_str!("../../resources/shaders/basic_shader.frag");
 
 pub struct HalState {
     creation_instant: Instant,
@@ -123,7 +117,7 @@ pub struct HalState {
     in_flight_fences: Vec<<back::Backend as Backend>::Fence>,
     render_finished_semaphores: Vec<<back::Backend as Backend>::Semaphore>,
     image_available_semaphores: Vec<<back::Backend as Backend>::Semaphore>,
-    command_buffers: Vec<CommandBuffer<back::Backend, Graphics, MultiShot, Primary>>,
+    command_buffers: Vec<CommandBuffer<back::Backend as Backend>>,
     command_pool: ManuallyDrop<CommandPool<back::Backend, Graphics>>,
     framebuffers: Vec<<back::Backend as Backend>::Framebuffer>,
     image_views: Vec<(<back::Backend as Backend>::ImageView)>,
@@ -139,8 +133,10 @@ pub struct HalState {
 
 impl HalState {
     pub fn new(window: &Window) -> Result<Self, &'static str> {
-        let instance = back::Instance::create(window.get_title(), 1);
-        let mut surface = instance.create_surface(&window.winit_window);
+        let instance = back::Instance::create("App Name", version: 1)
+                                      .map_err(|_e| "Can't create backend instance")?;
+
+        let mut surface = instance.create_surface(window);
 
         let adapter = instance
             .enumerate_adapters()
@@ -182,14 +178,13 @@ impl HalState {
         let (swapchain, extent, backbuffer, format, frames_in_flight) = {
             let (caps, preferred_formats, present_modes, composite_alphas) = surface.compatibility(&adapter.physical_device);
 
-            info!("{:?}", caps);
-            info!("Preferred Formats: {:?}", preferred_formats);
-            info!("Present Modes: {:?}", present_modes);
-            info!("Composite Alphas: {:?}", composite_alphas);
+            println!("{:?}", caps);
+            println!("Preferred Formats: {:?}", preferred_formats);
+            println!("Present Modes: {:?}", present_modes);
+            println!("Composite Alphas: {:?}", composite_alphas);
 
             let present_mode = {
-                use gfx_hal::window::PresentMode::*;
-                [Mailbox, Fifo, Relaxed, Immediate]
+                [PresentMode::MAILBOX, PresentMode::FIFO, PresentMode::RELAXED, PresentMode::IMMEDIATE]
                     .iter()
                     .cloned()
                     .find(|pm| present_modes.contains(pm))
@@ -197,8 +192,7 @@ impl HalState {
             };
 
             let composite_alpha = {
-                use gfx_hal::window::CompositeAlpha::*;
-                [Opaque, Inherit, PreMultiplied, PostMultiplied]
+                [CompositeAlphaMode::OPAQUE, CompositeAlphaMode::INHERIT, CompositeAlphaMode::PREMULTIPLIED, CompositeAlphaMode::POSTMULTIPLIED]
                     .iter()
                     .cloned()
                     .find(|ca| composite_alphas.contains(ca))
@@ -260,7 +254,7 @@ impl HalState {
                 image_usage
             };
 
-            info!("{:?}", swapchain_config);
+            println!("{:?}", swapchain_config);
 
             let (swapchain, backbuffer) = unsafe {
                 device
@@ -460,7 +454,7 @@ impl HalState {
                 None
             )
             .map_err(|e| {
-                error!("{}", e);
+                eprintln!("{}", e);
                 "Couldn't compile vertex shader!"
             })?;
 
@@ -473,7 +467,7 @@ impl HalState {
                 None
             )
             .map_err(|e| {
-                error!("{}", e);
+                eprintln!("{}", e);
                 "Couldn't compile fragment shader!"
             })?;
 
@@ -578,7 +572,12 @@ impl HalState {
 
                 BlendDesc {
                     logic_op: Some(LogicOp::Copy),
-                    targets: vec![ColorBlendDesc(ColorMask::ALL, blend_state)]
+                    targets: vec![
+                        ColorBlendDesc {
+                            mask: ColorMask::ALL,
+                            blend: blend_state
+                        }
+                    ]
                 }
             };
 
@@ -761,7 +760,14 @@ impl HalState {
         // record command
         unsafe {
             let buffer = &mut self.command_buffers[i_usize];
-            const TRIANGLE_CLEAR: [ClearValue; 1] = [ClearValue::Color(ClearColor::Float([0.1, 0.2, 0.3, 1.0]))];
+            const TRIANGLE_CLEAR: [ClearValue; 1] = [
+                ClearValue {
+                    color: ClearColor {
+                        float32: [0.1, 0.2, 0.3, 1.0]
+                    }
+                }
+            ];
+
             buffer.begin(false);
             {
                 let mut encoder = buffer.begin_render_pass_inline(
