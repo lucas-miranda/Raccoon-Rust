@@ -7,19 +7,13 @@ use crate::{
     events::Event,
     input::{
         Input,
-        InputEventListener
     },
     tools::{
         log::Logger
     },
     window::{
-        backends::{
-            InputEventsHandler,
-            WindowEventsHandler,
-        },
         Window,
-        WindowEvent,
-        WindowEventListener
+        WindowEvent
     }
 };
 
@@ -30,6 +24,7 @@ pub struct GameState {
     is_running: bool
 }
 
+/*
 impl WindowEventListener for GameState {
     fn handle(&mut self, event: &mut Event<WindowEvent>) {
         match event.kind() {
@@ -42,6 +37,7 @@ impl WindowEventListener for GameState {
         }
     }
 }
+*/
 
 impl GameState {
     pub fn new() -> GameState {

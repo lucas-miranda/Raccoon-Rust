@@ -6,12 +6,10 @@ use crate::{
         Button,
         ButtonState,
         InputEvent,
-        InputEventListener,
         KeyCode,
         MouseButton
     },
-    math::Vector2,
-    window::backends::InputEventsIndirectHandler
+    math::Vector2
 };
 
 pub struct Input {
@@ -40,6 +38,7 @@ macro_rules! update_state {
     }
 }
 
+/*
 impl InputEventsIndirectHandler<Box<&mut dyn InputEventListener>> for Input {
     fn handle(&mut self, listener: &mut Box<&mut dyn InputEventListener>, events: &mut Vec<Event<InputEvent>>) {
         for event in events.iter_mut() {
@@ -110,6 +109,7 @@ impl InputEventsIndirectHandler<Box<&mut dyn InputEventListener>> for Input {
         }
     }
 }
+*/
 
 impl Input {
     pub fn key(&self, key: KeyCode) -> Option<&Button> {

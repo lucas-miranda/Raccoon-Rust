@@ -12,22 +12,37 @@ use crate::{
             },
             Realm
         },
+        GameLoop,
+        GameLoopInterface,
         GameState,
         GameError
     },
+    rendering::Renderer,
     window::{
-        backends::BackendInterface,
+        backends::{
+            BackendEventLoop,
+            BackendInterface
+        },
         Window
     }
 };
 
-pub struct Game {
+pub struct Game<L: GameLoopInterface = GameLoop> {
     game_state: Rc<RefCell<GameState>>,
-    window: Window
+    window: Window<L>
 }
 
 impl Game {
-    pub fn new() -> Result<Game, GameError> {
+    pub fn new() -> Result<Game<GameLoop>, GameError> {
+        Ok(Game { 
+            game_state: Rc::new(RefCell::new(GameState::new())),
+            window: Window::default()
+        })
+    }
+}
+
+impl<L: 'static + GameLoopInterface> Game<L> {
+    pub fn with_custom_loop<T: 'static + GameLoopInterface>() -> Result<Game<T>, GameError> {
         Ok(Game { 
             game_state: Rc::new(RefCell::new(GameState::new())),
             window: Window::default()
@@ -35,6 +50,9 @@ impl Game {
     }
 
     pub fn run(&mut self, mut realm: Realm) {
+        let mut renderer = Renderer::new(Some(&self.window))
+                                    .expect("Can't create a renderer.");
+
         realm.game_state = Rc::downgrade(&self.game_state);
 
         // register default systems
@@ -47,14 +65,23 @@ impl Game {
 
         // 
 
+        //let game_loop = GameLoop::new(realm, renderer, Rc::downgrade(&self.game_state));
+
+        self.window
+            .event_loop()
+            .run(L::new(realm, renderer, Rc::downgrade(&self.game_state)));
+
+
+        /*
         match self.window.new_backend_weak_ref().upgrade() {
             Some(ref window) => {
                 <_ as Borrow<RefCell<crate::window::backends::Backend>>>::borrow(window)
                       .borrow_mut()
-                      .run(Rc::downgrade(&self.game_state), realm);
+                      .run(GameLoop::new(realm, renderer, Rc::downgrade(&self.game_state)));
             },
             None => ()
         }
+        */
 
         /*
         loop {
@@ -119,7 +146,7 @@ impl Game {
     */
 }
 
-impl Drop for Game {
+impl<L: GameLoopInterface> Drop for Game<L> {
     fn drop(&mut self) {
     }
 }

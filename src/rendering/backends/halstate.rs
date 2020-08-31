@@ -1,3 +1,12 @@
+use std::{
+    borrow::{
+        Borrow,
+        Cow
+    },
+    cell::RefCell,
+    iter::once
+};
+
 #[cfg(feature = "dx12")]
 use gfx_backend_dx12 as back;
 
@@ -14,84 +23,32 @@ use core::mem::{
     ManuallyDrop
 };
 
+use raw_window_handle::{
+    HasRawWindowHandle
+};
+
 use gfx_hal::{
-    adapter::{
-        Adapter,
-        PhysicalDevice
-    },
-    buffer::Usage as BufferUsage,
-    command::{ 
-        ClearColor,
-        ClearValue,
-        CommandBuffer,
-        MultiShot,
-        Level
-    },
-    device::{
-        Device
-    },
-    format::{
-        Aspects,
-        ChannelType,
-        Format,
-        Swizzle
-    },
-    image::{
-        Extent,
-        Layout,
-        SubresourceRange,
-        Usage,
-        ViewKind
-    },
-    memory::{
-        Properties,
-        Requirements
-    },
-    pass::{
-        Attachment,
-        AttachmentLoadOp,
-        AttachmentOps,
-        AttachmentStoreOp,
-        Subpass,
-        SubpassDesc
-    },
-    pool::{
-        CommandPool,
-        CommandPoolCreateFlags
-    },
-    pso::{
-        AttributeDesc, BakedStates, BasePipeline, BlendDesc, BlendOp, BlendState, ColorBlendDesc,
-        ColorMask, DepthStencilDesc, DepthTest, DescriptorSetLayoutBinding, ElemOffset, ElemStride, Element, EntryPoint,
-        Face, Factor, FrontFace, GraphicsPipelineDesc, GraphicsShaderSet, InputAssemblerDesc,
-        LogicOp, PipelineCreationFlags, PipelineStage, PolygonMode, Rasterizer, Rect,
-        ShaderStageFlags, Specialization, StencilTest, VertexBufferDesc, Viewport
-    },
-    queue::{ 
-        family::QueueGroup,
-        Submission
-    },
-    window::{
-        Backbuffer,
-        CompositeAlphaMode,
-        Extent2D,
-        FrameSync,
-        PresentMode,
-        Swapchain,
-        SwapchainConfig
-    },
+    adapter,
+    buffer,
+    command,
+    format,
+    image,
+    memory,
+    pass,
+    pool,
+    prelude::*,
+    pso,
+    queue,
+    window,
     Backend, 
-    Gpu,
-    Graphics,
     Instance,
-    MemoryTypeId,
-    Primitive,
-    QueueFamily,
-    Surface
+    MemoryTypeId
 };
 
 use std::time::Instant;
 
 use crate::{
+    core::GameLoopInterface,
     math::{
         Triangle
     },
@@ -104,67 +61,90 @@ static VERTEX_SOURCE: &'static str = include_str!("../../resources/shaders/basic
 
 static FRAGMENT_SOURCE: &'static str = include_str!("../../resources/shaders/basic_shader.frag");
 
-pub struct HalState {
-    creation_instant: Instant,
-    buffer: ManuallyDrop<<back::Backend as Backend>::Buffer>,
-    memory: ManuallyDrop<<back::Backend as Backend>::Memory>,
-    descriptor_set_layouts: Vec<<back::Backend as Backend>::DescriptorSetLayout>,
-    pipeline_layout: ManuallyDrop<<back::Backend as Backend>::PipelineLayout>,
-    graphics_pipeline: ManuallyDrop<<back::Backend as Backend>::GraphicsPipeline>,
-    requirements: Requirements,
-    current_frame: usize,
+pub struct HalState<B: Backend> {
+    instance: B::Instance,
+    device: B::Device,
+    surface: ManuallyDrop<B::Surface>,
+    adapter: adapter::Adapter<B>,
+    format: format::Format,
+    queue_group: queue::family::QueueGroup<B>,
     frames_in_flight: usize,
-    in_flight_fences: Vec<<back::Backend as Backend>::Fence>,
-    render_finished_semaphores: Vec<<back::Backend as Backend>::Semaphore>,
-    image_available_semaphores: Vec<<back::Backend as Backend>::Semaphore>,
-    command_buffers: Vec<CommandBuffer<back::Backend as Backend>>,
-    command_pool: ManuallyDrop<CommandPool<back::Backend, Graphics>>,
-    framebuffers: Vec<<back::Backend as Backend>::Framebuffer>,
-    image_views: Vec<(<back::Backend as Backend>::ImageView)>,
-    render_pass: ManuallyDrop<<back::Backend as Backend>::RenderPass>,
-    render_area: Rect,
-    queue_group: QueueGroup<back::Backend, Graphics>,
-    swapchain: ManuallyDrop<<back::Backend as Backend>::Swapchain>,
-    device: ManuallyDrop<back::Device>,
-    _adapter: Adapter<back::Backend>,
-    _surface: <back::Backend as Backend>::Surface,
-    _instance: ManuallyDrop<back::Instance>
+    dimensions: window::Extent2D,
+    viewport: pso::Viewport,
+    current_frame: u64,
+
+    // descriptors
+    descriptor_set_layout: ManuallyDrop<B::DescriptorSetLayout>,
+    descriptor_pool: ManuallyDrop<B::DescriptorPool>,
+    descriptor_set: B::DescriptorSet,
+
+    // resources
+    submission_complete_semaphores: Vec<B::Semaphore>,
+    submission_complete_fences: Vec<B::Fence>,
+    command_pools: Vec<B::CommandPool>,
+    command_buffers: Vec<B::CommandBuffer>,
+
+    // vertex buffer
+    vertex_buffer: ManuallyDrop<B::Buffer>,
+    vertex_buffer_memory: ManuallyDrop<B::Memory>,
+
+    // pass
+    render_pass: ManuallyDrop<B::RenderPass>,
+
+    // pipeline
+    graphics_pipeline: ManuallyDrop<B::GraphicsPipeline>,
+    pipeline_layout: ManuallyDrop<B::PipelineLayout>,
 }
 
-impl HalState {
-    pub fn new(window: &Window) -> Result<Self, &'static str> {
-        let instance = back::Instance::create("App Name", version: 1)
+impl<B: Backend> HalState<B> {
+    pub fn new<L: 'static + GameLoopInterface>(window: &Window<L>) -> Result<Self, &'static str> {
+        let instance = B::Instance::create("App Name", 1)
                                       .map_err(|_e| "Can't create backend instance")?;
 
-        let mut surface = instance.create_surface(window);
+        let mut surface = unsafe {
+            instance.create_surface(window)
+                    .map_err(|_e| {
+                        panic!("error: {}", _e);
+                        "Can't create surface using window."
+                    })?
+        };
 
-        let adapter = instance
-            .enumerate_adapters()
-            .into_iter()
-            .find(|a| {
-                a.queue_families
-                    .iter()
-                    .any(|qf| qf.supports_graphics() && surface.supports_queue_family(qf))
-            })
-            .ok_or("Couldn't find a graphical Adapter!")?;
+        let adapters = instance.enumerate_adapters();
+
+        println!("Available adapters:");
+        for adapter in &adapters {
+            println!("- {:?}", adapter.info);
+        }
+
+        let adapter = adapters.into_iter()
+                              .find(|a| {
+                                  a.queue_families
+                                   .iter()
+                                   .any(|qf| qf.queue_type().supports_graphics() && surface.supports_queue_family(qf))
+                              })
+                              .ok_or("Couldn't find a graphical Adapter!")?;
 
         let (mut device, queue_group) = {
             let queue_family = adapter
                 .queue_families
                 .iter()
-                .find(|qf| qf.supports_graphics() && surface.supports_queue_family(qf))
+                .find(|qf| qf.queue_type().supports_graphics() && surface.supports_queue_family(qf))
                 .ok_or("Couldn't find a QueueFamily with graphics!")?;
 
-            let Gpu { device, mut queues } = unsafe {
+            let adapter::Gpu { device, mut queue_groups } = unsafe {
+                //let device_features = adapter.physical_device.features();
+                //println!("gpu enable features: {:?}", device_features);
+
                 adapter
                     .physical_device
-                    .open(&[(&queue_family, &[1.0; 1])])
+                    .open(&[(queue_family, &[1.0])], gfx_hal::Features::empty())
                     .map_err(|_| "Couldn't open the PhysicalDevice!")?
             };
 
-            let queue_group = queues
-                .take::<Graphics>(queue_family.id())
-                .ok_or("Couldn't take ownership of the QueueGroup!")?;
+            let queue_group = match queue_groups.iter().position(|qg| qg.family == queue_family.id()) {
+                Some(index) => queue_groups.remove(index),
+                None => panic!("Can't find a valid queue group.")
+            };
 
             if queue_group.queues.len() > 0 {
                 Ok(())
@@ -175,213 +155,183 @@ impl HalState {
             (device, queue_group)
         };
 
-        let (swapchain, extent, backbuffer, format, frames_in_flight) = {
-            let (caps, preferred_formats, present_modes, composite_alphas) = surface.compatibility(&adapter.physical_device);
+        let mut command_pool = unsafe { 
+            device.create_command_pool(queue_group.family, pool::CommandPoolCreateFlags::empty()) 
+        }
+        .expect("Can't create command pool");
 
-            println!("{:?}", caps);
-            println!("Preferred Formats: {:?}", preferred_formats);
-            println!("Present Modes: {:?}", present_modes);
-            println!("Composite Alphas: {:?}", composite_alphas);
+        // descriptors
+        let bindings = {
+            /*
+            let bindings = vec![
+                pso::DescriptorSetLayoutBinding {
+                    binding: 0,
+                    ty: pso::DescriptorType::Image {
+                        ty: pso::ImageDescriptorType::Sampled {
+                            with_sampler: false,
+                        },
+                    },
+                    count: 1,
+                    stage_flags: ShaderStageFlags::FRAGMENT,
+                    immutable_samplers: false,
+                },
+                pso::DescriptorSetLayoutBinding {
+                    binding: 1,
+                    ty: pso::DescriptorType::Sampler,
+                    count: 1,
+                    stage_flags: ShaderStageFlags::FRAGMENT,
+                    immutable_samplers: false,
+                }
+            ];
+            */
 
-            let present_mode = {
-                [PresentMode::MAILBOX, PresentMode::FIFO, PresentMode::RELAXED, PresentMode::IMMEDIATE]
-                    .iter()
-                    .cloned()
-                    .find(|pm| present_modes.contains(pm))
-                    .ok_or("No PresentMode values specified!")?
-            };
+            Vec::<pso::DescriptorSetLayoutBinding>::new()
+        };
 
-            let composite_alpha = {
-                [CompositeAlphaMode::OPAQUE, CompositeAlphaMode::INHERIT, CompositeAlphaMode::PREMULTIPLIED, CompositeAlphaMode::POSTMULTIPLIED]
-                    .iter()
-                    .cloned()
-                    .find(|ca| composite_alphas.contains(ca))
-                    .ok_or("No CompositeAlpha values specified!")?
-            };
+        let immutable_samplers = Vec::<B::Sampler>::new();
+
+        let descriptor_set_layout = unsafe {
+                device.create_descriptor_set_layout(bindings, immutable_samplers)
+        }
+        .expect("Can't create descrpitor set layout");
+
+        let desc: Vec<pso::DescriptorRangeDesc> = Vec::new();
+
+        let mut descriptor_pool = ManuallyDrop::new(
+            unsafe {
+                device.create_descriptor_pool(
+                    1, // sets
+                    &desc,
+                    pso::DescriptorPoolCreateFlags::empty()
+                )
+            }
+            .expect("Can't create descriptor pool")
+        );
+
+        let descriptor_set = unsafe {
+            descriptor_pool.allocate_set(&descriptor_set_layout)
+        }
+        .unwrap();
+
+        let (extent, format, frames_in_flight) = {
+            let capabilities = surface.capabilities(&adapter.physical_device);
+            let preferred_formats = surface.supported_formats(&adapter.physical_device);
+
+            println!("capabilities: {:?}", capabilities);
+            println!("preferred_formats: {:?}", preferred_formats);
 
             let format = match preferred_formats {
-                None => Format::Rgba8Srgb,
-                Some(formats) => match formats
-                    .iter()
-                    .find(|format| format.base_format().1 == ChannelType::Srgb)
-                    .cloned()
-                {
-                    Some(srgb_format) => srgb_format,
-                    None => formats
-                        .get(0)
-                        .cloned()
-                        .ok_or("Preferred format list was empty!")?
-                }
+                Some(formats) => formats.iter()
+                                        .find(|format| format.base_format().1 == format::ChannelType::Srgb)
+                                        .map(|format| *format)
+                                        .unwrap_or(formats[0]),
+
+                None => format::Format::Rgba8Srgb
             };
 
             let extent = {
-                let window_client_area = window
-                    .winit_window
-                    .get_inner_size()
-                    .ok_or("Window doesn't exists")?
-                    .to_physical(window.winit_window.get_hidpi_factor());
+                let window_client_area = window.inner_size();
 
-                Extent2D {
-                    width: caps.extents.end.width.min(window_client_area.width as u32),
-                    height: caps
-                        .extents
-                        .end
-                        .height
-                        .min(window_client_area.height as u32)
+                window::Extent2D {
+                    width: capabilities.extents
+                                       .end()
+                                       .width
+                                       .min(window_client_area.width()),
+
+                    height: capabilities.extents
+                                        .end()
+                                        .height
+                                        .min(window_client_area.height())
                 }
             };
 
-            let image_count = if present_mode == PresentMode::Mailbox {
-                (caps.image_count.end - 1).min(caps.image_count.start.max(3))
-            } else {
-                (caps.image_count.end - 1).min(caps.image_count.start.max(2))
-            };
-
-            let image_layers = 1;
-            let image_usage = if caps.usage.contains(Usage::COLOR_ATTACHMENT) {
-                Usage::COLOR_ATTACHMENT
-            } else {
-                Err("The Surface isn't capable of supporting color!")?
-            };
-
-            let swapchain_config = SwapchainConfig {
-                present_mode,
-                composite_alpha,
-                format,
-                extent,
-                image_count,
-                image_layers,
-                image_usage
-            };
+            let swapchain_config = window::SwapchainConfig::from_caps(&capabilities, format, extent);
+            let frames_in_flight = swapchain_config.image_count as usize;
 
             println!("{:?}", swapchain_config);
+            println!("frames in flight: {}", frames_in_flight);
 
-            let (swapchain, backbuffer) = unsafe {
-                device
-                    .create_swapchain(&mut surface, swapchain_config, None)
-                    .map_err(|_| "Failed to create the swapchain")?
-            };
+            unsafe { surface.configure_swapchain(&device, swapchain_config) }
+                            .expect("Failed to configure swapchain");
 
-            (swapchain, extent, backbuffer, format, image_count as usize)
-        };
 
-        let (image_available_semaphores, render_finished_semaphores, in_flight_fences) = {
-            let mut image_available_semaphores: Vec<<back::Backend as Backend>::Semaphore> = vec![];
-            let mut render_finished_semaphores: Vec<<back::Backend as Backend>::Semaphore> = vec![];
-            let mut in_flight_fences: Vec<<back::Backend as Backend>::Fence> = vec![];
-
-            for _ in 0..frames_in_flight {
-                in_flight_fences.push(
-                    device
-                        .create_fence(true)
-                        .map_err(|_| "Could not create a fence!")?
-                );
-
-                image_available_semaphores.push(
-                    device
-                        .create_semaphore()
-                        .map_err(|_| "Could not create a sempahore!")?
-                );
-
-                render_finished_semaphores.push(
-                    device
-                        .create_semaphore()
-                        .map_err(|_| "Could not create a semaphore!")?
-                );
-            }
-
-            (image_available_semaphores, render_finished_semaphores, in_flight_fences)
+            (extent, format, frames_in_flight)
         };
 
         let render_pass = {
-            let color_attachment = Attachment {
+            let attachment = pass::Attachment {
                 format: Some(format),
                 samples: 1,
-                ops: AttachmentOps {
-                    load: AttachmentLoadOp::Clear,
-                    store: AttachmentStoreOp::Store
+                ops: pass::AttachmentOps {
+                    load: pass::AttachmentLoadOp::Clear,
+                    store: pass::AttachmentStoreOp::Store
                 },
-                stencil_ops: AttachmentOps::DONT_CARE,
-                layouts: Layout::Undefined..Layout::Present
+                stencil_ops: pass::AttachmentOps::DONT_CARE,
+                layouts: image::Layout::Undefined..image::Layout::Present
             };
 
-            let subpass = SubpassDesc {
-                colors: &[(0, Layout::ColorAttachmentOptimal)],
+            let subpass = pass::SubpassDesc {
+                colors: &[(0, image::Layout::ColorAttachmentOptimal)],
                 depth_stencil: None,
                 inputs: &[],
                 resolves: &[],
                 preserves: &[]
             };
 
+            ManuallyDrop::new(
+                unsafe {
+                    device.create_render_pass(&[attachment], &[subpass], &[])
+                }
+                .expect("Can't create render pass!")
+            )
+        };
+
+
+        // resources
+        let mut submission_complete_semaphores = Vec::with_capacity(frames_in_flight);
+        let mut submission_complete_fences = Vec::with_capacity(frames_in_flight);
+        let mut command_pools = Vec::with_capacity(frames_in_flight);
+        let mut command_buffers = Vec::with_capacity(frames_in_flight);
+
+        command_pools.push(command_pool);
+        for _ in 1..frames_in_flight {
             unsafe {
-                device
-                    .create_render_pass(&[color_attachment], &[subpass], &[])
-                    .map_err(|_| "Couldn't create a render pass!")?
+                command_pools.push(
+                    device.create_command_pool(queue_group.family, pool::CommandPoolCreateFlags::empty())
+                          .expect("Can't create command pool")
+                );
             }
-        };
+        }
 
-        let image_views: Vec<_> = match backbuffer {
-            Backbuffer::Images(images) => images
-                .into_iter()
-                .map(|image| unsafe {
-                    device
-                        .create_image_view(
-                            &image,
-                            ViewKind::D2,
-                            format,
-                            Swizzle::NO,
-                            SubresourceRange {
-                                aspects: Aspects::COLOR,
-                                levels: 0..1,
-                                layers: 0..1
-                            }
-                        )
-                        .map_err(|_| "Couldn't create the image_view for the image!")
-                })
-                .collect::<Result<Vec<_>, &str>>()?,
-            Backbuffer::Framebuffer(_) => unimplemented!("Can't handle framebuffer backbuffer!")
-        };
+        for i in 0..frames_in_flight {
+            submission_complete_semaphores.push(
+                device.create_semaphore()
+                      .expect("Could not create semaphore")
+            );
 
-        let framebuffers: Vec<<back::Backend as Backend>::Framebuffer> = {
-            image_views
-                .iter()
-                .map(|image_view| unsafe {
-                    device
-                        .create_framebuffer(
-                            &render_pass,
-                            vec![image_view],
-                            Extent {
-                                width: extent.width as u32,
-                                height: extent.height as u32,
-                                depth: 1
-                            }
-                        )
-                        .map_err(|_| "Failed to create a framebuffer!")
-                })
-                .collect::<Result<Vec<_>, &str>>()?
-        };
+            submission_complete_fences.push(
+                device.create_fence(true)
+                      .expect("Could not create fence")
+            );
 
-        let mut command_pool = unsafe {
-            device
-                .create_command_pool_typed(&queue_group, CommandPoolCreateFlags::RESET_INDIVIDUAL)
-                .map_err(|_| "Could not create the raw command pool!")?
-        };
+            command_buffers.push(
+                unsafe {
+                    command_pools[i].allocate_one(command::Level::Primary)
+                }
+            );
+        }
 
-        let command_buffers: Vec<_> = framebuffers
-            .iter()
-            .map(|_| command_pool.acquire_command_buffer())
-            .collect();
+        // pipeline
+        let (pipeline_layout, graphics_pipeline) = Self::create_pipeline(&mut device, extent, &render_pass, &descriptor_set_layout)?;
 
-        // pipeline and vertex buffer
-        let (descriptor_set_layouts, pipeline_layout, graphics_pipeline) = Self::create_pipeline(&mut device, extent, &render_pass)?;
-
-        let (buffer, memory, requirements) = unsafe {
+        // vertex buffer
+        let (vertex_buffer, vertex_buffer_memory, vertex_buffer_requirements) = unsafe {
             const F32_XY_RGB_TRIANGLE: u64 = (size_of::<f32>() * (2 + 3) * 3) as u64;
-            let mut buffer = device
-                .create_buffer(F32_XY_RGB_TRIANGLE, BufferUsage::VERTEX)
+            let mut vertex_buffer = device
+                .create_buffer(F32_XY_RGB_TRIANGLE, buffer::Usage::VERTEX)
                 .map_err(|_| "Couldn't create a buffer for the vertices")?;
 
-            let requirements = device.get_buffer_requirements(&buffer);
+            let vertex_buffer_requirements = device.get_buffer_requirements(&vertex_buffer);
             let memory_type_id = adapter
                 .physical_device
                 .memory_properties()
@@ -389,61 +339,72 @@ impl HalState {
                 .iter()
                 .enumerate()
                 .find(|&(id, memory_type)| {
-                    requirements.type_mask & (1 << id) != 0
-                        && memory_type.properties.contains(Properties::CPU_VISIBLE)
+                    vertex_buffer_requirements.type_mask & (1 << id) != 0
+                        && memory_type.properties.contains(memory::Properties::CPU_VISIBLE)
                 })
                 .map(|(id, _)| MemoryTypeId(id))
                 .ok_or("Coudl'nt find a memory type to support the vertex buffer!")?;
 
-            let memory = device
-                .allocate_memory(memory_type_id, requirements.size)
+            let vertex_buffer_memory = device
+                .allocate_memory(memory_type_id, vertex_buffer_requirements.size)
                 .map_err(|_| "Couldn't allocate vertex buffer memory")?;
 
             device
-                .bind_buffer_memory(&memory, 0, &mut buffer)
+                .bind_buffer_memory(&vertex_buffer_memory, 0, &mut vertex_buffer)
                 .map_err(|_| "Couldn't bind the buffer memory!")?;
 
-            (buffer, memory, requirements)
+            (vertex_buffer, vertex_buffer_memory, vertex_buffer_requirements)
+        };
+
+        // viewport
+        let viewport = pso::Viewport {
+            rect: pso::Rect {
+                x: 0,
+                y: 0,
+                w: extent.width as _,
+                h: extent.height as _,
+            },
+            depth: 0.0..1.0
         };
 
         Ok(Self {
-            creation_instant: Instant::now(),
-            requirements,
-            buffer: ManuallyDrop::new(buffer),
-            memory: ManuallyDrop::new(memory),
-            _instance: ManuallyDrop::new(instance),
-            _surface: surface,
-            _adapter: adapter,
-            device: ManuallyDrop::new(device),
+            instance,
+            device,
+            surface: ManuallyDrop::new(surface),
+            adapter,
+            format,
             queue_group,
-            swapchain: ManuallyDrop::new(swapchain),
-            render_area: extent.to_extent().rect(),
-            render_pass: ManuallyDrop::new(render_pass),
-            image_views,
-            framebuffers,
-            command_pool: ManuallyDrop::new(command_pool),
-            command_buffers,
-            image_available_semaphores,
-            render_finished_semaphores,
-            in_flight_fences,
             frames_in_flight,
+            dimensions: extent,
+            viewport,
             current_frame: 0,
-            descriptor_set_layouts,
+
+            // descriptors
+            descriptor_set_layout: ManuallyDrop::new(descriptor_set_layout),
+            descriptor_pool,
+            descriptor_set,
+
+            // resources
+            submission_complete_semaphores,
+            submission_complete_fences,
+            command_pools,
+            command_buffers,
+
+            // vertex buffer
+            vertex_buffer: ManuallyDrop::new(vertex_buffer),
+            vertex_buffer_memory: ManuallyDrop::new(vertex_buffer_memory),
+
+            // pass
+            render_pass,
+
+            // pipeline
             pipeline_layout: ManuallyDrop::new(pipeline_layout),
-            graphics_pipeline: ManuallyDrop::new(graphics_pipeline)
+            graphics_pipeline: ManuallyDrop::new(graphics_pipeline),
         })
     }
 
     #[allow(clippy::type_complexity)]
-    fn create_pipeline(device: &mut back::Device, extent: Extent2D, render_pass: &<back::Backend as Backend>::RenderPass) 
-    -> Result<
-        (
-            Vec<<back::Backend as Backend>::DescriptorSetLayout>,
-            <back::Backend as Backend>::PipelineLayout,
-            <back::Backend as Backend>::GraphicsPipeline
-        ),
-        &'static str
-    > {
+    fn create_pipeline(device: &mut B::Device, extent: window::Extent2D, render_pass: &B::RenderPass, descriptor_set_layout: &B::DescriptorSetLayout) -> Result<(B::PipelineLayout, B::GraphicsPipeline), &'static str> {
         let mut compiler = shaderc::Compiler::new().ok_or("shaderc not found!")?;
         let vertex_compile_artifact = compiler
             .compile_into_spirv(
@@ -472,117 +433,120 @@ impl HalState {
             })?;
 
         let vertex_shader_module = unsafe {
-            device
-                .create_shader_module(vertex_compile_artifact.as_binary_u8())
-                .map_err(|_| "Couldn't make the vertex module")?
+            device.create_shader_module(vertex_compile_artifact.as_binary())
+                  .map_err(|_| "Couldn't make the vertex module")?
         };
 
         let fragment_shader_module = unsafe {
-            device
-                .create_shader_module(fragment_compile_artifact.as_binary_u8())
-                .map_err(|_| "Couldn't make the fragment module")?
+            device.create_shader_module(fragment_compile_artifact.as_binary())
+                  .map_err(|_| "Couldn't make the fragment module")?
         };
 
-        let (descriptor_set_layouts, pipeline_layout, gfx_pipeline) = {
+        let (pipeline_layout, gfx_pipeline) = {
             let (vs_entry, fs_entry) = (
-                EntryPoint {
+                pso::EntryPoint {
                     entry: "main",
                     module: &vertex_shader_module,
-                    specialization: Specialization {
-                        constants: &[],
-                        data: &[]
-                    }
+                    specialization: pso::Specialization::default()
                 },
-                EntryPoint {
+                pso::EntryPoint {
                     entry: "main",
                     module: &fragment_shader_module,
-                    specialization: Specialization {
-                        constants: &[],
-                        data: &[]
-                    }
+                    specialization: pso::Specialization::default()
                 }
             );
 
-            let shaders = GraphicsShaderSet {
-                vertex: vs_entry,
-                hull: None,
-                domain: None,
-                geometry: None,
-                fragment: Some(fs_entry)
+            let subpass = pass::Subpass {
+                index: 0,
+                main_pass: &*render_pass
             };
 
-            let input_assembler = InputAssemblerDesc::new(Primitive::TriangleList);
-
-            let vertex_buffers: Vec<VertexBufferDesc> = vec![VertexBufferDesc {
-                binding: 0,
-                stride: (size_of::<f32>() * 5) as ElemStride,
-                rate: 0
-            }];
-
-            let position_attribute = AttributeDesc {
-                location: 0,
-                binding: 0,
-                element: Element {
-                    format: Format::Rg32Float,
-                    offset: 0
+            let vertex_buffers: Vec<pso::VertexBufferDesc> = vec![
+                pso::VertexBufferDesc {
+                    binding: 0,
+                    stride: (size_of::<f32>() * 5) as pso::ElemStride,
+                    rate: pso::VertexInputRate::Vertex
                 }
-            };
-
-            let color_attribute = AttributeDesc {
-                location: 1,
-                binding: 0,
-                element: Element {
-                    format: Format::Rgb32Float,
-                    offset: (size_of::<f32>() * 2) as ElemOffset
-                }
-            };
-
-            let attributes: Vec<AttributeDesc> = vec![
-                position_attribute,
-                color_attribute
             ];
 
+            let attributes: Vec<pso::AttributeDesc> = vec![
+                // position attr
+                pso::AttributeDesc {
+                    location: 0,
+                    binding: 0,
+                    element: pso::Element {
+                        format: format::Format::Rg32Sfloat,
+                        offset: 0
+                    }
+                },
 
-            let rasterizer = Rasterizer {
-                depth_clamping: false,
-                polygon_mode: PolygonMode::Fill,
-                cull_face: Face::NONE,
-                front_face: FrontFace::Clockwise,
-                depth_bias: None,
-                conservative: false
+                // color attr
+                pso::AttributeDesc {
+                    location: 1,
+                    binding: 0,
+                    element: pso::Element {
+                        format: format::Format::Rgb32Sfloat,
+                        offset: (size_of::<f32>() * 2) as pso::ElemOffset
+                    }
+                }
+            ];
+
+            let input_assembler = pso::InputAssemblerDesc {
+                primitive: pso::Primitive::TriangleList,
+                with_adjacency: false,
+                restart_index: None
             };
 
-            let depth_stencil = DepthStencilDesc {
-                depth: DepthTest::Off,
+            let primitive_assembler = pso::PrimitiveAssemblerDesc::Vertex {
+                buffers: &vertex_buffers,
+                attributes: &attributes,
+                input_assembler,
+                vertex: vs_entry,
+                tessellation: None,
+                geometry: None
+            };
+
+            let rasterizer = pso::Rasterizer {
+                depth_clamping: false,
+                polygon_mode: pso::PolygonMode::Fill,
+                cull_face: pso::Face::NONE,
+                front_face: pso::FrontFace::Clockwise,
+                depth_bias: None,
+                conservative: false,
+                line_width: pso::State::Static(1f32)
+            };
+
+            let depth_stencil = pso::DepthStencilDesc {
+                depth: None,
                 depth_bounds: false,
-                stencil: StencilTest::Off
+                stencil: None
             };
 
             let blender = {
-                let blend_state = BlendState::On {
-                    color: BlendOp::Add {
-                        src: Factor::One,
-                        dst: Factor::Zero
+                let blend_state = pso::BlendState {
+                    color: pso::BlendOp::Add {
+                        src: pso::Factor::One,
+                        dst: pso::Factor::Zero
                     },
-                    alpha: BlendOp::Add {
-                        src: Factor::One,
-                        dst: Factor::Zero
+                    alpha: pso::BlendOp::Add {
+                        src: pso::Factor::One,
+                        dst: pso::Factor::Zero
                     }
                 };
 
-                BlendDesc {
-                    logic_op: Some(LogicOp::Copy),
+                pso::BlendDesc {
+                    logic_op: Some(pso::LogicOp::Copy),
                     targets: vec![
-                        ColorBlendDesc {
-                            mask: ColorMask::ALL,
-                            blend: blend_state
+                        pso::ColorBlendDesc {
+                            mask: pso::ColorMask::ALL,
+                            blend: Some(blend_state)
                         }
                     ]
                 }
             };
 
-            let baked_states = BakedStates {
-                viewport: Some(Viewport {
+            let baked_states = pso::BakedStates {
+                viewport: Some(pso::Viewport {
                     rect: extent.to_extent().rect(),
                     depth: (0.0..1.0)
                 }),
@@ -591,50 +555,34 @@ impl HalState {
                 depth_bounds: None
             };
 
-            let bindings = Vec::<DescriptorSetLayoutBinding>::new();
-            let immutable_samplers = Vec::<<back::Backend as Backend>::Sampler>::new();
-            let descriptor_set_layouts: Vec<<back::Backend as Backend>::DescriptorSetLayout> =
-                vec![unsafe {
-                    device
-                        .create_descriptor_set_layout(bindings, immutable_samplers)
-                        .map_err(|_| "Couldn't make a DescriptorSetLayout")?
-                }];
-
-            let push_constants = vec![(ShaderStageFlags::FRAGMENT, 0..1)];
+            let push_constants = vec![(pso::ShaderStageFlags::FRAGMENT, 0..1)];
             let layout = unsafe {
-                device
-                    .create_pipeline_layout(&descriptor_set_layouts, push_constants)
-                    .map_err(|_| "Couldn't create a pipeline layout")?
+                device.create_pipeline_layout(once(descriptor_set_layout), push_constants)
+                      .map_err(|_| "Couldn't create a pipeline layout")?
             };
 
             let gfx_pipeline = {
-                let desc = GraphicsPipelineDesc {
-                    shaders,
+                let desc = pso::GraphicsPipelineDesc {
+                    primitive_assembler,
+                    fragment: Some(fs_entry),
                     rasterizer,
-                    vertex_buffers,
-                    attributes,
-                    input_assembler,
                     blender,
                     depth_stencil,
                     multisampling: None,
                     baked_states,
                     layout: &layout,
-                    subpass: Subpass {
-                        index: 0,
-                        main_pass: render_pass
-                    },
-                    flags: PipelineCreationFlags::empty(),
-                    parent: BasePipeline::None
+                    subpass,
+                    flags: pso::PipelineCreationFlags::empty(),
+                    parent: pso::BasePipeline::None
                 };
 
                 unsafe {
-                    device
-                        .create_graphics_pipeline(&desc, None)
-                        .map_err(|_| "Couldn't create a graphics pipeline!")?
+                    device.create_graphics_pipeline(&desc, None)
+                          .map_err(|_| "Couldn't create a graphics pipeline!")?
                 }
             };
 
-            (descriptor_set_layouts, layout, gfx_pipeline)
+            (layout, gfx_pipeline)
         };
 
         unsafe {
@@ -642,70 +590,127 @@ impl HalState {
             device.destroy_shader_module(fragment_shader_module);
         }
 
-        Ok((descriptor_set_layouts, pipeline_layout, gfx_pipeline))
+        Ok((pipeline_layout, gfx_pipeline))
     }
 
-    pub fn draw_clear_frame(&mut self, color: [f32; 4]) -> Result<(), &'static str> {
-        // setup for this frame
-        let image_available = &self.image_available_semaphores[self.current_frame];
-        let render_finished = &self.render_finished_semaphores[self.current_frame];
-        self.current_frame = (self.current_frame + 1) % self.frames_in_flight;
+    pub fn draw_clear_frame(&mut self, color: [f32; 4]) {
+        // setup
 
-        let (i_u32, i_usize) = unsafe {
-            let image_index = self
-                .swapchain
-                .acquire_image(core::u64::MAX, FrameSync::Semaphore(image_available))
-                .map_err(|_| "Couldn't acquire an image from the swapchain!")?;
-
-            (image_index, image_index as usize)
+        let surface_image = unsafe {
+            match self.surface.acquire_image(!0) {
+                Ok((image, _)) => image,
+                Err(e) => panic!(e)
+            }
         };
 
-        let flight_fence = &self.in_flight_fences[i_usize];
+        let framebuffer = unsafe {
+            self.device
+                .create_framebuffer(
+                    &self.render_pass,
+                    once(surface_image.borrow()),
+                    image::Extent {
+                        width: self.dimensions.width as u32,
+                        height: self.dimensions.height as u32,
+                        depth: 1
+                    }
+                )
+                .expect("Failed to create a framebuffer!")
+        };
+
+        let frame_index = self.current_frame as usize % self.frames_in_flight;
+
         unsafe {
+            let fence = &self.submission_complete_fences[frame_index];
+
             self.device
-                .wait_for_fence(flight_fence, core::u64::MAX)
-                .map_err(|_| "Failed to wait on the fence!")?;
+                .wait_for_fence(fence, !0)
+                .expect("Failed to wait for fence");
+
             self.device
-                .reset_fence(flight_fence)
-                .map_err(|_| "Couldn't reset the fence!")?;
+                .reset_fence(fence)
+                .expect("Failed to reset fence");
+
+            self.command_pools[frame_index].reset(false);
         }
 
+        // rendering
+
         // record commands
+        let command_buffer = &mut self.command_buffers[frame_index];
         unsafe {
-            let buffer = &mut self.command_buffers[i_usize];
-            let clear_values = [ClearValue::Color(ClearColor::Float(color))];
-            buffer.begin(false);
-            buffer.begin_render_pass_inline(
-                &self.render_pass,
-                &self.framebuffers[i_usize],
-                self.render_area,
-                clear_values.iter()
+            command_buffer.begin_primary(command::CommandBufferFlags::ONE_TIME_SUBMIT);
+
+            command_buffer.set_viewports(0, &[self.viewport.clone()]);
+            command_buffer.set_scissors(0, &[self.viewport.rect]);
+
+            command_buffer.bind_graphics_pipeline(&self.graphics_pipeline);
+            command_buffer.bind_vertex_buffers(
+                0,
+                once((&*self.vertex_buffer, buffer::SubRange::WHOLE))
+            );
+            command_buffer.bind_graphics_descriptor_sets(
+                &self.pipeline_layout,
+                0,
+                once(&self.descriptor_set),
+                &[]
             );
 
-            buffer.finish();
+            let clear_values = [
+                command::ClearValue {
+                    color: command::ClearColor { 
+                        float32: color 
+                    }
+                }
+            ];
+
+            command_buffer.begin_render_pass(
+                &self.render_pass,
+                &framebuffer,
+                self.viewport.rect,
+                &clear_values,
+                command::SubpassContents::Inline
+            );
+
+            //command_buffer.draw(0..6, 0..1);
+
+            command_buffer.end_render_pass();
+            command_buffer.finish();
         }
 
         // submission and present
-        let command_buffers = &self.command_buffers[i_usize..=i_usize];
-        let wait_semaphores: ArrayVec<[_; 1]> = [(image_available, PipelineStage::COLOR_ATTACHMENT_OUTPUT)].into();
-        let signal_semaphores: ArrayVec<[_; 1]> = [render_finished].into();
-        let present_wait_semaphores: ArrayVec<[_; 1]> = [render_finished].into();
 
-        let submission = Submission {
-            command_buffers,
-            wait_semaphores,
-            signal_semaphores
+        let submission = queue::Submission {
+            command_buffers: once(&*command_buffer),
+            wait_semaphores: None,
+            signal_semaphores: once(&self.submission_complete_semaphores[frame_index])
         };
 
         let command_queue = &mut self.queue_group.queues[0];
         unsafe {
-            command_queue.submit(submission, Some(flight_fence));
-            self.swapchain
-                .present(command_queue, i_u32, present_wait_semaphores)
-                .map_err(|_| "Failed to present into the swapchain!")
-        }
+            command_queue.submit(
+                submission, 
+                Some(&self.submission_complete_fences[frame_index])
+            );
+
+            let present_result = command_queue.present(
+                &mut self.surface, 
+                surface_image, 
+                Some(&self.submission_complete_semaphores[frame_index])
+            );
+
+            self.device.destroy_framebuffer(framebuffer);
+
+            /*
+            if present_result.is_err() {
+                self.recreate_swapchain();
+            }
+            */
+        };
+
+        self.current_frame += 1;
     }
 
+    /*
     pub fn draw_triangle_frame(&mut self, triangle: Triangle) -> Result<(), &'static str> {
         let image_available = &self.image_available_semaphores[self.current_frame];
         let render_finished = &self.render_finished_semaphores[self.current_frame];
@@ -715,7 +720,7 @@ impl HalState {
         let (i_u32, i_usize) = unsafe {
             let image_index = self
                 .swapchain
-                .acquire_image(core::u64::MAX, FrameSync::Semaphore(image_available))
+                .acquire_image(core::u64::MAX)
                 .map_err(|_| "Couldn't acquire an image from the swapchain!")?;
 
             (image_index, image_index as usize)
@@ -814,10 +819,12 @@ impl HalState {
                 .map_err(|_| "Failed to present into the swapchain")
         }
     }
+    */
 }
 
-impl core::ops::Drop for HalState {
+impl<B: Backend> core::ops::Drop for HalState<B> {
     fn drop(&mut self) {
+        /*
         let _ = self.device.wait_idle();
 
         unsafe {
@@ -838,13 +845,17 @@ impl core::ops::Drop for HalState {
                 self.device.destroy_semaphore(semaphore);
             }
 
+            /*
             for framebuffer in self.framebuffers.drain(..) {
                 self.device.destroy_framebuffer(framebuffer);
             }
+            */
 
-            for image_view in self.image_views.drain(..) {
-                self.device.destroy_image_view(image_view);
+            /*
+            for swapchain_image in self.swapchain_images.drain(..) {
+                self.device.destroy_image_view(swapchain_image);
             }
+            */
 
             use core::ptr::read;
 
@@ -861,17 +872,22 @@ impl core::ops::Drop for HalState {
                 .destroy_graphics_pipeline(ManuallyDrop::into_inner(read(&self.graphics_pipeline)));
 
             self.device.destroy_command_pool(
-                ManuallyDrop::into_inner(read(&self.command_pool)).into_raw()
+                ManuallyDrop::into_inner(read(&self.command_pool))
             );
 
             self.device
                 .destroy_render_pass(ManuallyDrop::into_inner(read(&self.render_pass)));
 
+            /*
             self.device
                 .destroy_swapchain(ManuallyDrop::into_inner(read(&self.swapchain)));
+            */
+
+            self._surface.unconfigure_swapchain(&self.device);
 
             ManuallyDrop::drop(&mut self.device);
             ManuallyDrop::drop(&mut self._instance);
         }
+        */
     }
 }

@@ -25,9 +25,6 @@ pub use button_state::ButtonState;
 mod input_event;
 pub use input_event::InputEvent;
 
-mod input_event_listener;
-pub use input_event_listener::InputEventListener;
-
 mod keyboard_event;
 pub use keyboard_event::KeyboardEvent;
 

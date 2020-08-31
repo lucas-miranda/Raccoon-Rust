@@ -25,14 +25,15 @@ use crate::{
         },
         GameState
     },
-    events::Event,
+    events::{
+        Event,
+        EventListener
+    },
     input::{
         InputEvent,
-        InputEventListener
     },
     window::{
         WindowEvent,
-        WindowEventListener
     }
 };
 
@@ -43,8 +44,8 @@ pub struct Realm {
     next_entity_id: EntityId
 }
 
-impl InputEventListener for Realm {
-    fn handle(&mut self, event: &mut Event<InputEvent>) {
+impl EventListener<InputEvent> for Realm {
+    fn notify(&mut self, event: &mut Event<InputEvent>) {
         match event.kind() {
             InputEvent::MouseButton(e) => {
                 println!(
@@ -76,8 +77,8 @@ impl InputEventListener for Realm {
     }
 }
 
-impl WindowEventListener for Realm {
-    fn handle(&mut self, event: &mut Event<WindowEvent>) {
+impl EventListener<WindowEvent> for Realm {
+    fn notify(&mut self, event: &mut Event<WindowEvent>) {
     }
 }
 

@@ -12,30 +12,28 @@ use raw_window_handle::{
 use crate::{
     core::{
         ecs::Realm,
+        GameLoopInterface,
         GameState,
     },
-    input::InputEventListener,
     math::{
         Size
     },
     window::{
         backends::{
-            Backend,
+            backend,
+            BackendEventLoop,
             BackendInterface,
-            InputEventsHandler,
-            InputEventsIndirectHandler,
-            WindowEventsHandler
-        },
-        WindowEventListener
+            BackendWindow
+        }
     }
 };
 
-pub struct Window {
-    backend: Rc<RefCell<Backend>>
+pub struct Window<L: GameLoopInterface> {
+    backend: backend::Backend<L>
     //title: String
 }
 
-impl Default for Window {
+impl<L: 'static + GameLoopInterface> Default for Window<L> {
     fn default() -> Self {
         Self::new(
             "Default Window",
@@ -45,12 +43,9 @@ impl Default for Window {
     }
 }
 
-unsafe impl HasRawWindowHandle for Window {
+unsafe impl<L: 'static + GameLoopInterface> HasRawWindowHandle for Window<L> {
     fn raw_window_handle(&self) -> RawWindowHandle {
-        let backend = <_ as Borrow<RefCell<Backend>>>::borrow(&self.backend)
-                                                      .borrow();
-
-        backend.raw_window_handle()
+        self.backend.window().raw_window_handle()
     }
 }
 
@@ -96,20 +91,24 @@ impl WindowEventsHandler<Box<&mut dyn WindowEventListener>> for Window {
 }
 */
 
-impl Window {
+impl<L: 'static + GameLoopInterface> Window<L> {
     pub fn new<T: Into<String>>(title: T, size: Size<u32>) -> Result<Self, ()> {
-        match Backend::new(title, size) {
+        match backend::Backend::new(title, size) {
             Ok(backend) => Ok(
                 Window {
-                    backend: Rc::new(RefCell::new(backend)),
+                    backend,
                 }
             ),
             Err(e) => Err(())
         }
     }
 
-    pub fn new_backend_weak_ref(&self) -> Weak<RefCell<Backend>> {
-        Rc::downgrade(&self.backend)
+    pub fn inner_size(&self) -> Size<u32> {
+        self.backend.window().inner_size()
+    }
+
+    pub fn event_loop(&mut self) -> <backend::Backend<L> as BackendInterface<L>>::EventLoop {
+        self.backend.event_loop()
     }
 
     /*

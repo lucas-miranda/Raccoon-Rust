@@ -2,6 +2,7 @@ use std::{
     borrow::Borrow,
     collections::HashMap,
     cell::{ RefCell, RefMut },
+    marker::PhantomData,
     rc::{ Rc, Weak }
 };
 
@@ -32,13 +33,13 @@ use winit::{
 use crate::{
     core::{
         ecs::Realm,
+        GameLoopInterface,
         GameState
     },
     events::Event,
     input::{
         ButtonState,
         InputEvent,
-        InputEventListener,
         KeyboardEvent,
         KeyCode,
         KeyModifiers,
@@ -52,60 +53,143 @@ use crate::{
         Size,
         Vector2
     },
+    rendering::{
+        Renderer
+    },
     window::{
         backends::{
+            BackendEventLoop,
             BackendInterface,
-            InputEventsHandler,
-            InputEventsIndirectHandler,
-            WindowEventsHandler
+            BackendWindow
         },
-        WindowEvent,
-        WindowEventListener
+        WindowEvent
     }
 };
 
 
-pub struct WinitBackend {
-    event_loop: Option<EventLoop<()>>,
-    winit_window: winit::window::Window,
-    //window_events: Vec<Event<WindowEvent>>,
-
-    // input
-    //input_events: Vec<Event<InputEvent>>
+pub struct WinitWindow {
+    window: Rc<winit::window::Window>
 }
 
-unsafe impl HasRawWindowHandle for WinitBackend {
+unsafe impl HasRawWindowHandle for WinitWindow {
     fn raw_window_handle(&self) -> RawWindowHandle {
-        self.winit_window.raw_window_handle()
+        self.window.raw_window_handle()
     }
 }
 
-impl BackendInterface for WinitBackend {
-    fn run(&mut self, game_state: Weak<RefCell<GameState>>, realm: Realm) {
+impl BackendWindow for WinitWindow {
+    fn inner_size(&self) -> Size<u32> {
+        self.window
+            .inner_size()
+            .to_logical::<u32>(1.0)
+            .into()
+    }
+}
+
+impl WinitWindow {
+    pub fn new<L: GameLoopInterface, T: Into<String>>(event_loop: &EventLoop<()>, window_title: T, size: Size<u32>) -> Result<Self, OsError> {
+        WindowBuilder::new()
+          .with_title(&window_title.into())
+          .with_inner_size(winit::dpi::Size::Logical(size.into()))
+          .build(event_loop)
+          .map(|window| {
+              Self {
+                  window: Rc::new(window)
+              }
+          })
+    }
+
+    pub fn internal_window(&self) -> &winit::window::Window {
+        &self.window
+    }
+
+    pub fn internal_window_ref(&self) -> Weak<winit::window::Window> {
+        Rc::downgrade(&self.window)
+    }
+
+    /*
+    pub fn get_ref(&self) -> Weak<winit::window::Window> {
+        Rc::downgrade(&self.window)
+    }
+    */
+
+    /*
+    pub fn window(&self) -> &winit::window::Window {
+        &self.winit_window
+    }
+
+    pub fn window_mut(&mut self) -> &mut winit::window::Window {
+        &mut self.winit_window
+    }
+    */
+}
+
+
+
+pub struct WinitEventLoop<L: GameLoopInterface> {
+    event_loop: Option<EventLoop<()>>,
+    window: Weak<winit::window::Window>,
+    phantom: PhantomData<L>
+}
+
+impl<L: 'static + GameLoopInterface> BackendEventLoop<L> for WinitEventLoop<L> {
+    fn run(mut self, mut game_loop: L) {
         let event_loop = self.event_loop.take()
                                         .expect("Expecting winit event loop.");
+
+        let mut redraw_request = false;
+        let game_state_weak = game_loop.game_state();
 
         event_loop.run(move |event, _, control_flow| {
             *control_flow = ControlFlow::Poll;
 
-            match game_state.upgrade() {
-                Some(ref mut game_state_strong_ref) => {
-                    let mut state = <_ as Borrow<RefCell<GameState>>>::borrow(game_state_strong_ref)
-                                                                      .borrow_mut();
+            match event {
+                winit::event::Event::WindowEvent { window_id: _,  event } => {
                     match event {
-                        winit::event::Event::WindowEvent { window_id: _,  event } => {
-                            match event {
-                                winit::event::WindowEvent::CloseRequested => {
-                                    println!("Close was requested by system.");
-                                    state.close_game();
+                        winit::event::WindowEvent::CloseRequested => {
+                            println!("Close was requested by system.");
+
+                            match game_state_weak.upgrade() {
+                                Some(ref mut game_state_strong_ref) => {
+                                    let mut game_state = <_ as Borrow<RefCell<GameState>>>::borrow(game_state_strong_ref)
+                                                                                           .borrow_mut();
+
+                                    game_state.close_game();
                                 },
-                                _ => ()
+                                None => {
+                                    eprintln!("Failed retrieving game state from game loop.");
+                                    *control_flow = ControlFlow::Exit;
+                                }
                             }
                         },
                         _ => ()
                     }
+                },
+                winit::event::Event::MainEventsCleared => {
+                    game_loop.step(&mut redraw_request);
 
-                    if !state.is_running() {
+                    if redraw_request {
+                        match self.window.upgrade() {
+                            Some(w) => {
+                                w.request_redraw();
+                                redraw_request = false;
+                            },
+                            None => ()
+                        };
+                    }
+                },
+                winit::event::Event::RedrawRequested(_window_id) => {
+                    game_loop.render();
+                },
+                _ => ()
+            }
+
+            match game_state_weak.upgrade() {
+                Some(ref mut game_state_strong_ref) => {
+                    let mut game_state = <_ as Borrow<RefCell<GameState>>>::borrow(game_state_strong_ref)
+                                                                           .borrow_mut();
+
+                    if !game_state.is_running() {
                         if let ControlFlow::Exit = *control_flow {
                         } else {
                             println!("Close was requested by user.");
@@ -115,11 +199,10 @@ impl BackendInterface for WinitBackend {
                     }
                 },
                 None => {
-                    eprintln!("Failed retrieving game state from winit backend.");
+                    eprintln!("Failed retrieving game state from game loop.");
                     *control_flow = ControlFlow::Exit;
-                    return;
                 }
-            };
+            }
         });
     }
 
@@ -366,24 +449,61 @@ impl WindowEventsHandler<Box<&mut dyn WindowEventListener>> for WinitBackend {
 }
 */
 
-impl WinitBackend {
-    pub fn new<T: Into<String>>(window_title: T, size: Size<u32>) -> Result<Self, OsError> {
-        let event_loop = EventLoop::new();
-
-        WindowBuilder::new()
-          .with_title(&window_title.into())
-          .with_inner_size(winit::dpi::Size::Logical(size.into()))
-          .build(&event_loop)
-          .map(|winit_window| {
-              Self {
-                  event_loop: Some(event_loop),
-                  winit_window
-                  //window_events: Vec::new(),
-                  //input_events: Vec::new()
-              }
-          })
+impl<L: GameLoopInterface> WinitEventLoop<L> {
+    pub fn new(event_loop: EventLoop<()>, window: Weak<winit::window::Window>) -> Self {
+        Self {
+            event_loop: Some(event_loop),
+            window,
+            phantom: PhantomData
+        }
     }
 }
+
+
+
+pub struct Backend<L: GameLoopInterface> {
+    window: WinitWindow,
+    event_loop: Option<WinitEventLoop<L>>
+}
+
+impl<L: 'static + GameLoopInterface> BackendInterface<L> for Backend<L> {
+    type Window = WinitWindow;
+    type EventLoop = WinitEventLoop<L>;
+
+    fn window(&self) -> &Self::Window {
+        &self.window
+    }
+
+    fn window_mut(&mut self) -> &mut Self::Window {
+        &mut self.window
+    }
+
+    fn event_loop(&mut self) -> Self::EventLoop {
+        match self.event_loop.take() {
+            Some(event_loop) => event_loop,
+            None => panic!("There is no event loop.")
+        }
+    }
+}
+
+impl<L: GameLoopInterface> Backend<L> {
+    pub fn new<T: Into<String>>(window_title: T, size: Size<u32>) -> Result<Self, OsError> {
+        let internal_event_loop = EventLoop::new();
+        let window = match WinitWindow::new::<L, _>(&internal_event_loop, window_title, size) {
+            Ok(w) => w,
+            Err(e) => return Err(e)
+        };
+
+        let event_loop = Some(WinitEventLoop::new(internal_event_loop, window.internal_window_ref()));
+
+        Ok(Self {
+            window,
+            event_loop
+        })
+    }
+}
+
+
 
 impl From<VirtualKeyCode> for KeyCode {
     fn from(key: VirtualKeyCode) -> KeyCode {
@@ -584,6 +704,13 @@ impl From<LogicalPosition<f64>> for Vector2<i32> {
 
 impl From<LogicalSize<f64>> for Size<u32> {
     fn from(logical_size: LogicalSize<f64>) -> Size<u32> {
+        let decomposed_size: (u32, u32) = logical_size.into();
+        Size::from(decomposed_size)
+    }
+}
+
+impl From<LogicalSize<u32>> for Size<u32> {
+    fn from(logical_size: LogicalSize<u32>) -> Size<u32> {
         let decomposed_size: (u32, u32) = logical_size.into();
         Size::from(decomposed_size)
     }

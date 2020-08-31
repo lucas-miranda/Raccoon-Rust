@@ -4,9 +4,11 @@ use crate::{
         Triangle
     },
     */
+    core::GameLoopInterface,
     rendering::{
         backends::{
-            Backend
+            Backend,
+            BackendInterface
         }
     },
     window::Window
@@ -17,9 +19,9 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(window: Option<&Window>) -> Result<Self, &'static str> {
+    pub fn new<L: 'static + GameLoopInterface>(window: Option<&Window<L>>) -> Result<Self, &'static str> {
         let backend = if cfg!(feature = "no-backend") {
-            Backend::new(None)?
+            Backend::new::<L>(None)?
         } else {
             match window {
                 Some(w) => Backend::new(Some(w))?,
@@ -36,11 +38,11 @@ impl Renderer {
         &self.backend
     }
 
-    /*
-    pub fn draw_clear_frame(&mut self, color: [f32; 4]) -> Result<(), &'static str> {
-        self._hal_state.draw_clear_frame(color)
+    pub fn draw_clear_frame(&mut self, color: [f32; 4]) {
+        self.backend.draw_clear_frame(color)
     }
 
+    /*
     pub fn draw_triangle_frame(&mut self, triangle: Triangle) -> Result<(), &'static str> {
         self._hal_state.draw_triangle_frame(triangle)
     }
