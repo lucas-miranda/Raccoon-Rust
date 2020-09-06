@@ -824,70 +824,37 @@ impl<B: Backend> HalState<B> {
 
 impl<B: Backend> core::ops::Drop for HalState<B> {
     fn drop(&mut self) {
-        /*
-        let _ = self.device.wait_idle();
+        self.device.wait_idle().unwrap();
 
         unsafe {
-            for descriptor_set_layout in self.descriptor_set_layouts.drain(..) {
-                self.device
-                    .destroy_descriptor_set_layout(descriptor_set_layout);
+            self.device.destroy_descriptor_pool(ManuallyDrop::take(&self.descriptor_pool));
+            self.device.destroy_descriptor_set_layout(ManuallyDrop::take(&self.descriptor_set_layout));
+
+            // buffers
+            self.device.destroy_buffer(ManuallyDrop::take(&self.vertex_buffer));
+
+            for command_pool in self.command_pools.drain(..) {
+                self.device.destroy_command_pool(command_pool);
             }
 
-            for fence in self.in_flight_fences.drain(..) {
+            for semaphore in self.submission_complete_semaphores.drain(..) {
+                self.device.destroy_semaphore(semaphore);
+            }
+
+            for fence in self.submission_complete_fences.drain(..) {
                 self.device.destroy_fence(fence);
             }
 
-            for semaphore in self.render_finished_semaphores.drain(..) {
-                self.device.destroy_semaphore(semaphore);
-            }
+            self.device.destroy_render_pass(ManuallyDrop::take(&self.render_pass));
+            self.surface.unconfigure_swapchain(&self.device);
 
-            for semaphore in self.image_available_semaphores.drain(..) {
-                self.device.destroy_semaphore(semaphore);
-            }
+            // memory
+            self.device.free_memory(ManuallyDrop::take(&self.vertex_buffer_memory));
 
-            /*
-            for framebuffer in self.framebuffers.drain(..) {
-                self.device.destroy_framebuffer(framebuffer);
-            }
-            */
+            self.device.destroy_graphics_pipeline(ManuallyDrop::take(&self.graphics_pipeline));
+            self.device.destroy_pipeline_layout(ManuallyDrop::take(&self.pipeline_layout));
 
-            /*
-            for swapchain_image in self.swapchain_images.drain(..) {
-                self.device.destroy_image_view(swapchain_image);
-            }
-            */
-
-            use core::ptr::read;
-
-            self.device
-                .destroy_buffer(ManuallyDrop::into_inner(read(&self.buffer)));
-
-            self.device
-                .free_memory(ManuallyDrop::into_inner(read(&self.memory)));
-
-            self.device
-                .destroy_pipeline_layout(ManuallyDrop::into_inner(read(&self.pipeline_layout)));
-
-            self.device
-                .destroy_graphics_pipeline(ManuallyDrop::into_inner(read(&self.graphics_pipeline)));
-
-            self.device.destroy_command_pool(
-                ManuallyDrop::into_inner(read(&self.command_pool))
-            );
-
-            self.device
-                .destroy_render_pass(ManuallyDrop::into_inner(read(&self.render_pass)));
-
-            /*
-            self.device
-                .destroy_swapchain(ManuallyDrop::into_inner(read(&self.swapchain)));
-            */
-
-            self._surface.unconfigure_swapchain(&self.device);
-
-            ManuallyDrop::drop(&mut self.device);
-            ManuallyDrop::drop(&mut self._instance);
+            instance.destroy_surface(ManuallyDrop::take(&self.surface));
         }
-        */
     }
 }
