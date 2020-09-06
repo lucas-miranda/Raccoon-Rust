@@ -1,4 +1,10 @@
-use std::collections::hash_map::Drain;
+use std::collections::hash_map::{
+    Drain,
+    Iter,
+    IterMut,
+    Values,
+    ValuesMut
+};
 
 use crate::core::ecs::{
     Component,
@@ -14,6 +20,12 @@ pub trait SystemDataContainer {
     fn try_add(&mut self, entity_id: EntityId, components: &mut ComponentCollection);
     fn drain(&mut self) -> Drain<EntityId, ComponentCollection>;
     //fn take(&mut self) -> Vec<Option<Box<dyn Component>>>;
+    /*
+    fn iter(&self) -> Iter<EntityId, ComponentCollection>;
+    fn iter_mut(&mut self) -> IterMut<EntityId, ComponentCollection>;
+    fn components(&self) -> Values<EntityId, ComponentCollection>;
+    fn components_mut(&mut self) -> ValuesMut<EntityId, ComponentCollection>;
+    */
 }
 
 /*

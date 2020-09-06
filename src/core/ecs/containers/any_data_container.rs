@@ -40,6 +40,7 @@ impl SystemDataContainer for AnyDataContainer {
     fn drain(&mut self) -> Drain<EntityId, Vec<Box<dyn Component>>> {
         self.components.drain()
     }
+
 }
 
 impl AnyDataContainer {

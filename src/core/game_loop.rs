@@ -1,4 +1,5 @@
 use std::{
+    borrow::Borrow,
     cell::RefCell,
     rc::Weak
 };
@@ -21,7 +22,7 @@ use crate::{
 
 pub struct GameLoop {
     realm: Realm,
-    renderer: Renderer,
+    renderer: Weak<RefCell<Renderer>>,
     game_state: Weak<RefCell<GameState>>
 }
 
@@ -38,7 +39,7 @@ impl EventHandler<WindowEvent> for GameLoop {
 }
 
 impl GameLoopInterface for GameLoop {
-    fn new(realm: Realm, renderer: Renderer, game_state: Weak<RefCell<GameState>>) -> Self {
+    fn new(realm: Realm, renderer: Weak<RefCell<Renderer>>, game_state: Weak<RefCell<GameState>>) -> Self {
         Self {
             realm,
             renderer,
@@ -55,7 +56,15 @@ impl GameLoopInterface for GameLoop {
     }
 
     fn render(&mut self) {
-        self.renderer.draw_clear_frame([0f32, 1f32, 0f32, 1f32]);
+        match self.renderer.upgrade() {
+            Some(renderer_strong_ref) => {
+                let mut renderer = <_ as Borrow<RefCell<Renderer>>>::borrow(&renderer_strong_ref)
+                                                                    .borrow_mut();
+
+                renderer.draw_clear_frame([0f32, 1f32, 0f32, 1f32]);
+            },
+            None => eprintln!("Can't retrieve renderer strong ref (from game loop)")
+        }
     }
 
     fn game_state(&self) -> Weak<RefCell<GameState>> {
@@ -64,11 +73,4 @@ impl GameLoopInterface for GameLoop {
 }
 
 impl GameLoop {
-
-    /*
-    fn get_game_state(&self, strong_ref: ) -> RefMut<'_, GameState> {
-        <_ as Borrow<RefCell<GameState>>>::borrow(&strong_ref)
-                                          .borrow_mut()
-    }
-    */
 }

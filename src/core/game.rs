@@ -8,6 +8,7 @@ use crate::{
     core::{
         ecs::{
             systems::{
+                RenderingSystem,
                 UpdateSystem
             },
             Realm
@@ -50,13 +51,15 @@ impl<L: 'static + GameLoopInterface> Game<L> {
     }
 
     pub fn run(&mut self, mut realm: Realm) {
-        let mut renderer = Renderer::new(Some(&self.window))
-                                    .expect("Can't create a renderer.");
+        let renderer = Rc::new(RefCell::new(
+            Renderer::new(Some(&self.window)).expect("Can't create a renderer.")
+        ));
 
         realm.game_state = Rc::downgrade(&self.game_state);
 
         // register default systems
         realm.register_system("update", UpdateSystem::new());
+        realm.register_system("rendering", RenderingSystem::new(Rc::downgrade(&renderer)));
 
         realm.setup_systems();
         <_ as Borrow<RefCell<GameState>>>::borrow(&self.game_state)
@@ -65,23 +68,9 @@ impl<L: 'static + GameLoopInterface> Game<L> {
 
         // 
 
-        //let game_loop = GameLoop::new(realm, renderer, Rc::downgrade(&self.game_state));
-
         self.window
             .event_loop()
-            .run(L::new(realm, renderer, Rc::downgrade(&self.game_state)));
-
-
-        /*
-        match self.window.new_backend_weak_ref().upgrade() {
-            Some(ref window) => {
-                <_ as Borrow<RefCell<crate::window::backends::Backend>>>::borrow(window)
-                      .borrow_mut()
-                      .run(GameLoop::new(realm, renderer, Rc::downgrade(&self.game_state)));
-            },
-            None => ()
-        }
-        */
+            .run(L::new(realm, Rc::downgrade(&renderer), Rc::downgrade(&self.game_state)));
 
         /*
         loop {
@@ -104,12 +93,6 @@ impl<L: 'static + GameLoopInterface> Game<L> {
     }
 
     /*
-    fn game_state(&self) -> RefMut<'_, GameState> {
-        <_ as Borrow<RefCell<GameState>>>::borrow(&self.game_state).borrow_mut()
-    }
-    */
-
-    /*
     pub fn render(&mut self, renderer: &mut Renderer) -> Result<(), &'static str> {
         /*
         let r = (self.mouse_x / self.frame_width) as f32;
@@ -130,18 +113,6 @@ impl<L: 'static + GameLoopInterface> Game<L> {
         };
 
         renderer.draw_triangle_frame(triangle)
-    }
-
-    fn update_from_input(&mut self, input: UserInput) {
-        if let Some(frame_size) = input.new_frame_size {
-            self.frame_width = frame_size.0;
-            self.frame_height = frame_size.1;
-        }
-
-        if let Some(position) = input.new_mouse_position {
-            self.mouse_x = position.0;
-            self.mouse_y = position.1;
-        }
     }
     */
 }

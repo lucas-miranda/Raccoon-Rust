@@ -1,5 +1,8 @@
 use crate::{
-    graphics::Renderable,
+    graphics::{
+        Drawable,
+        Graphic
+    },
     rendering::{
         Backend,
         BackendInterface,
@@ -9,14 +12,20 @@ use crate::{
 };
 
 pub struct Image {
+    //texture: Texture
 }
 
-impl Renderable for Image {
-    fn render(&self, _renderer: &Renderer) {
+impl Drawable for Image {
+    fn draw(&mut self, renderer: &mut Renderer) {
+        // TODO  draw from texture data
     }
 
     fn dispose(&mut self) {
+        //texture.dispose();
     }
+}
+
+impl Graphic for Image {
 }
 
 impl Image {

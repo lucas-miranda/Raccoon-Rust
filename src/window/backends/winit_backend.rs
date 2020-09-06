@@ -66,6 +66,7 @@ use crate::{
     }
 };
 
+// window
 
 pub struct WinitWindow {
     window: Rc<winit::window::Window>
@@ -79,9 +80,11 @@ unsafe impl HasRawWindowHandle for WinitWindow {
 
 impl BackendWindow for WinitWindow {
     fn inner_size(&self) -> Size<u32> {
+        let scale_factor = self.window.scale_factor();
+
         self.window
             .inner_size()
-            .to_logical::<u32>(1.0)
+            .to_logical::<u32>(scale_factor)
             .into()
     }
 }
@@ -106,25 +109,9 @@ impl WinitWindow {
     pub fn internal_window_ref(&self) -> Weak<winit::window::Window> {
         Rc::downgrade(&self.window)
     }
-
-    /*
-    pub fn get_ref(&self) -> Weak<winit::window::Window> {
-        Rc::downgrade(&self.window)
-    }
-    */
-
-    /*
-    pub fn window(&self) -> &winit::window::Window {
-        &self.winit_window
-    }
-
-    pub fn window_mut(&mut self) -> &mut winit::window::Window {
-        &mut self.winit_window
-    }
-    */
 }
 
-
+// event loop
 
 pub struct WinitEventLoop<L: GameLoopInterface> {
     event_loop: Option<EventLoop<()>>,
@@ -459,7 +446,7 @@ impl<L: GameLoopInterface> WinitEventLoop<L> {
     }
 }
 
-
+// backend
 
 pub struct Backend<L: GameLoopInterface> {
     window: WinitWindow,
@@ -503,7 +490,7 @@ impl<L: GameLoopInterface> Backend<L> {
     }
 }
 
-
+// backend types conversion implementations
 
 impl From<VirtualKeyCode> for KeyCode {
     fn from(key: VirtualKeyCode) -> KeyCode {

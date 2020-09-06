@@ -1,10 +1,20 @@
-use std::any::Any;
-use crate::core::ecs::{
-    components::Updatable,
-    Component
+use std::{
+    any::Any,
+    borrow::BorrowMut,
+    cell::RefMut,
+};
+
+use crate::{
+    core::ecs::{
+        components::Updatable,
+        Component
+    },
+    graphics::Graphic,
+    rendering::Renderer
 };
 
 pub struct GraphicRendererComponent {
+    graphics: Vec<Box<dyn Graphic>>
 }
 
 impl Component for GraphicRendererComponent {
@@ -28,9 +38,27 @@ impl Updatable for GraphicRendererComponent {
     }
 }
 
+impl Drawable for GraphicRendererComponent {
+    fn draw(&mut self, renderer: &mut Renderer) {
+        self.graphics
+            .iter_mut()
+            .for_each(|graphic| graphic.draw(renderer.borrow_mut()))
+    }
+}
+
+impl Drop for GraphicRendererComponent {
+    fn drop(&mut self) {
+    }
+}
+
 impl GraphicRendererComponent {
     pub fn new() -> GraphicRendererComponent {
         GraphicRendererComponent {
+            graphics: Vec::new()
         }
+    }
+
+    pub fn register(&mut self, graphic: Box<dyn Graphic>) {
+        self.graphics.push(graphic);
     }
 }

@@ -1,38 +1,38 @@
-    use std:: {
-        any::Any,
-        cell::Ref,
-        time::{
-            Duration,
-            Instant
-        }
-    };
+use std:: {
+    any::Any,
+    cell::Ref,
+    time::{
+        Duration,
+        Instant
+    }
+};
 
-    use crate::{
-        core::{
-            ecs::{
-                containers::{
-                    AnyDataContainer
-                },
-                System
+use crate::{
+    core::{
+        ecs::{
+            containers::{
+                AnyDataContainer
             },
-            GameState
-        }
-    };
+            System
+        },
+        GameState
+    }
+};
 
-    pub struct UpdateSystem {
-        timer: Duration,
-        last_update_timer_checkpoint: Option<Instant>,
-        last_update_delta_time: Duration
+pub struct UpdateSystem {
+    timer: Duration,
+    last_update_timer_checkpoint: Option<Instant>,
+    last_update_delta_time: Duration
+}
+
+impl System for UpdateSystem {
+    type DataType = AnyDataContainer;
+
+    fn setup(&mut self, _game_state: &mut Ref<GameState>) {
+        self.last_update_timer_checkpoint = Some(Instant::now());
     }
 
-    impl System for UpdateSystem {
-        type DataType = AnyDataContainer;
-
-        fn setup(&mut self, _game_controller: &mut Ref<GameState>) {
-            self.last_update_timer_checkpoint = Some(Instant::now());
-        }
-
-        fn run(&mut self, any_components: &mut Self::DataType, _game_controller: &mut Ref<GameState>) {
+    fn run(&mut self, any_components: &mut Self::DataType, _game_state: &mut Ref<GameState>) {
         self.step_timer();
         //println!("dt: {:?}, et: {:?}", self.get_update_delta_time(), self.get_timer());
 

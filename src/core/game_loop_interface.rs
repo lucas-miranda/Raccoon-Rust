@@ -15,7 +15,7 @@ use crate::{
 };
 
 pub trait GameLoopInterface : EventHandler<InputEvent> + EventHandler<WindowEvent> {
-    fn new(realm: Realm, renderer: Renderer, game_state: Weak<RefCell<GameState>>) -> Self;
+    fn new(realm: Realm, renderer: Weak<RefCell<Renderer>>, game_state: Weak<RefCell<GameState>>) -> Self;
     fn step(&mut self, redraw_request: &mut bool);
     fn update(&mut self);
     fn render(&mut self);

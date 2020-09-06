@@ -1,7 +1,17 @@
 use std::{
     collections::{
-        hash_map::Drain,
+        hash_map::{
+            Drain,
+            Iter,
+            IterMut,
+            Values,
+            ValuesMut
+        },
         HashMap,
+    },
+    iter::{
+        Iterator,
+        Map
     },
     marker::PhantomData
 };
@@ -65,5 +75,55 @@ impl<T: Component> SimpleDataContainer<T> {
         }
 
         Ok(components)
+    }
+
+    //pub fn iter<'a>(&self) -> Map<Iter<'_, EntityId, Vec<Box<dyn Component>>>, FnMut((EntityId, Vec<Box<impl Component>>)) -> (EntityId, Vec<&'a T>)> {
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (EntityId, Vec<&'a T>)> {
+        self.components
+            .iter()
+            .map(|(k, v)| {
+                let mut components = Vec::new();
+                for component in v.iter() {
+                    components.push(
+                        component.as_any()
+                                 .downcast_ref::<T>()
+                                 .expect("Conversion from boxed component into concrete type is impossible.")
+                    );
+                }
+
+                (*k, components)
+            })
+            .into_iter()
+    }
+
+    /*
+    pub fn iter_mut<'a>(&mut self) -> IterMut<EntityId, Vec<&'a T>> {
+        self.components.iter_mut()
+    }
+    */
+
+    /*
+    pub fn components<'a>(&self) -> Values<EntityId, Vec<&'a T>> {
+        self.components.values()
+    }
+    */
+
+    pub fn components_mut<'a>(&'a mut self) -> impl Iterator<Item = &'a mut T> {
+        self.components
+            .values_mut()
+            .map(|v| {
+                let mut components = Vec::new();
+                for component in v.iter_mut() {
+                    components.push(
+                        component.as_any_mut()
+                                 .downcast_mut::<T>()
+                                 .expect("Conversion from boxed component into concrete type is impossible.")
+                    );
+                }
+
+                components
+            })
+            .flatten()
+            .into_iter()
     }
 }

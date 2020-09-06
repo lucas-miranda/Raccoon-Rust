@@ -1,28 +1,65 @@
+use std::{
+    any::Any,
+    borrow::Borrow,
+    cell::{
+        Ref,
+        RefCell
+    },
+    rc::Weak
+};
+
 use crate::{
-    core::ecs::{
-        System,
-        SystemDataContainer
+    core::{
+        ecs::{
+            components::{
+                GraphicRendererComponent
+            },
+            containers::{
+                SimpleDataContainer
+            },
+            System,
+        },
+        GameState
     },
     graphics::Graphic,
     rendering::Renderer
 };
 
-pub struct RenderingSystem<'a> {
-    renderer: Renderer
+pub struct RenderingSystem {
+    renderer: Weak<RefCell<Renderer>>
 }
 
-impl<'a> System for RenderingSystem<'a> {
-    type DataType = SystemDataContainer<'a, dyn Graphic>;
+impl System for RenderingSystem {
+    type DataType = SimpleDataContainer<GraphicRendererComponent>;
 
-    fn run(&mut self, component_type: Self::DataType) {
-        self.renderer.render(component_type.get(0));
+    fn setup(&mut self, _game_state: &mut Ref<GameState>) {
+    }
+
+    fn run(&mut self, components: &mut Self::DataType, _game_state: &mut Ref<GameState>) {
+        match self.renderer.upgrade() {
+            Some(renderer_strong_ref) => {
+                let mut renderer = <_ as Borrow<RefCell<Renderer>>>::borrow(&renderer_strong_ref)
+                                                                    .borrow_mut();
+                components.components_mut()
+                          .for_each(|component| component.render(&mut renderer))
+            },
+            None => ()
+        }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
-impl<'a> RenderingSystem<'a> {
-    pub fn new() -> RenderingSystem<'a> {
+impl RenderingSystem {
+    pub fn new(renderer: Weak<RefCell<Renderer>>) -> RenderingSystem {
         RenderingSystem {
-            renderer: Renderer::new().expect("Can't initialize Renderer.")
+            renderer
         }
     }
 }
