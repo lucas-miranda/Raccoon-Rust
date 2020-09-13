@@ -9,7 +9,10 @@ use crate::{
         components::Updatable,
         Component
     },
-    graphics::Graphic,
+    graphics::{
+        Drawable,
+        Graphic
+    },
     rendering::Renderer
 };
 

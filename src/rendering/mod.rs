@@ -1,8 +1,7 @@
 mod renderer;
 pub use renderer::Renderer;
 
-mod backends;
-pub use backends::*;
+pub mod backends;
 
 mod rendering_requirements;
 pub use rendering_requirements::RenderingRequirements;

@@ -56,6 +56,9 @@ impl GameLoopInterface for GameLoop {
     }
 
     fn render(&mut self) {
+        self.realm.run_system("rendering");
+
+        /*
         match self.renderer.upgrade() {
             Some(renderer_strong_ref) => {
                 let mut renderer = <_ as Borrow<RefCell<Renderer>>>::borrow(&renderer_strong_ref)
@@ -65,6 +68,7 @@ impl GameLoopInterface for GameLoop {
             },
             None => eprintln!("Can't retrieve renderer strong ref (from game loop)")
         }
+        */
     }
 
     fn game_state(&self) -> Weak<RefCell<GameState>> {

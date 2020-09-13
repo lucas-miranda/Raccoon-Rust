@@ -21,7 +21,10 @@ use crate::{
         },
         GameState
     },
-    graphics::Graphic,
+    graphics::{
+        Drawable,
+        Graphic
+    },
     rendering::Renderer
 };
 
@@ -41,7 +44,9 @@ impl System for RenderingSystem {
                 let mut renderer = <_ as Borrow<RefCell<Renderer>>>::borrow(&renderer_strong_ref)
                                                                     .borrow_mut();
                 components.components_mut()
-                          .for_each(|component| component.render(&mut renderer))
+                          .for_each(|component| {
+                              component.draw(&mut renderer);
+                          })
             },
             None => ()
         }

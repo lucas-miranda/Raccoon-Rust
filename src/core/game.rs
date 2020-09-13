@@ -30,29 +30,38 @@ use crate::{
 
 pub struct Game<L: GameLoopInterface = GameLoop> {
     game_state: Rc<RefCell<GameState>>,
+    renderer: Option<Renderer>,
     window: Window<L>
 }
 
 impl Game {
     pub fn new() -> Result<Game<GameLoop>, GameError> {
+        let window = Window::default();
+        let renderer = Some(Renderer::new(Some(&window)).expect("Can't create a renderer."));
+
         Ok(Game { 
             game_state: Rc::new(RefCell::new(GameState::new())),
-            window: Window::default()
+            renderer,
+            window
         })
     }
 }
 
 impl<L: 'static + GameLoopInterface> Game<L> {
     pub fn with_custom_loop<T: 'static + GameLoopInterface>() -> Result<Game<T>, GameError> {
+        let window = Window::default();
+        let renderer = Some(Renderer::new(Some(&window)).expect("Can't create a renderer."));
+
         Ok(Game { 
             game_state: Rc::new(RefCell::new(GameState::new())),
-            window: Window::default()
+            renderer,
+            window
         })
     }
 
     pub fn run(&mut self, mut realm: Realm) {
         let renderer = Rc::new(RefCell::new(
-            Renderer::new(Some(&self.window)).expect("Can't create a renderer.")
+            self.renderer.take().expect("There is no renderer available.")
         ));
 
         realm.game_state = Rc::downgrade(&self.game_state);
@@ -90,6 +99,14 @@ impl<L: 'static + GameLoopInterface> Game<L> {
             //realm.upkeep();
         }
         */
+    }
+
+    pub fn renderer(&self) -> &Option<Renderer> {
+        &self.renderer
+    }
+
+    pub fn mut_renderer(&mut self) -> &mut Option<Renderer> {
+        &mut self.renderer
     }
 
     /*

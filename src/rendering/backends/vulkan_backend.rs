@@ -4,16 +4,27 @@ use gfx_backend_vulkan;
 
 use crate::{
     core::GameLoopInterface,
+    graphics::{
+        shaders::{
+            Shader
+        },
+        Texture
+    },
     rendering::{
-        backends::HalState,
-        BackendInterface,
+        backends::{
+            BackendInterface,
+            GraphicsDevice,
+            HalState,
+            VertexPosition,
+            VertexUV
+        },
         RenderingRequirements
     },
     window::Window
 };
 
 pub struct VulkanBackend {
-    hal_state: HalState<gfx_backend_vulkan::Backend>
+    hal_state: HalState
 }
 
 impl VulkanBackend {
@@ -38,6 +49,8 @@ impl VulkanBackend {
 }
 
 impl BackendInterface for VulkanBackend {
+    type InternalBackend = gfx_backend_vulkan::Backend;
+
     fn name() -> &'static str {
         "Vulkan"
     }
@@ -46,7 +59,21 @@ impl BackendInterface for VulkanBackend {
         true
     }
 
+    fn graphics_device(&self) -> &GraphicsDevice {
+        &self.hal_state.graphics_device
+    }
+
+    fn mut_graphics_device(&mut self) -> &mut GraphicsDevice {
+        &mut self.hal_state.graphics_device
+    }
+
     fn draw_clear_frame(&mut self, color: [f32; 4]) {
         self.hal_state.draw_clear_frame(color)
+    }
+
+    fn draw_texture_with_vertices<V, P, U>(&mut self, vertices: &[V], texture: &mut Texture, shader: &Shader) where 
+        V: VertexPosition<P> + VertexUV<U>
+    {
+        self.hal_state.draw_texture_with_vertices(vertices, texture, shader)
     }
 }

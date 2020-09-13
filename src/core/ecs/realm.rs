@@ -123,6 +123,28 @@ impl Realm {
         self.entities = entities_map;
     }
 
+    pub fn run_system<T: Into<String>>(&mut self, label: T) {
+        let mut entities_map = self.entities.take();
+
+        match entities_map {
+            Some(ref mut entities) => {
+                match self.game_state.upgrade() {
+                    Some(ref mut game_state) => {
+                        let l = label.into();
+                        match self.systems.get_mut::<String>(&l) {
+                            Some(s) => s.run(entities, game_state.borrow().borrow_mut()),
+                            None => panic!("System with label '{}' not found.", l)
+                        }
+                    },
+                    None => ()
+                }
+            },
+            None => panic!("Entities not found.")
+        }
+
+        self.entities = entities_map;
+    }
+
     pub fn upkeep(&self) {
     }
 
