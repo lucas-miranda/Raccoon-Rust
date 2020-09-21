@@ -10,7 +10,9 @@ use crate::{
     },
     events::EventHandler,
     input::InputEvent,
-    rendering::Renderer,
+    rendering::{
+        Renderer,
+    },
     window::WindowEvent
 };
 
@@ -20,4 +22,5 @@ pub trait GameLoopInterface : EventHandler<InputEvent> + EventHandler<WindowEven
     fn update(&mut self);
     fn render(&mut self);
     fn game_state(&self) -> Weak<RefCell<GameState>>;
+    fn finalize(&mut self);
 }

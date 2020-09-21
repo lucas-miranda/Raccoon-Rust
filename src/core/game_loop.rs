@@ -16,14 +16,22 @@ use crate::{
         EventListener
     },
     input::InputEvent,
-    rendering::Renderer,
+    rendering::{
+        backends::{
+            GraphicsDevice,
+            ResourceDisposable,
+            panic_if_resource_isnt_disposed
+        },
+        Renderer,
+    },
     window::WindowEvent
 };
 
 pub struct GameLoop {
     realm: Realm,
     renderer: Weak<RefCell<Renderer>>,
-    game_state: Weak<RefCell<GameState>>
+    game_state: Weak<RefCell<GameState>>,
+    finalized: bool
 }
 
 impl EventHandler<InputEvent> for GameLoop {
@@ -43,7 +51,8 @@ impl GameLoopInterface for GameLoop {
         Self {
             realm,
             renderer,
-            game_state
+            game_state,
+            finalized: false
         }
     }
 
@@ -73,6 +82,33 @@ impl GameLoopInterface for GameLoop {
 
     fn game_state(&self) -> Weak<RefCell<GameState>> {
         self.game_state.clone()
+    }
+
+    fn finalize(&mut self) {
+        if self.finalized {
+            return;
+        }
+
+        self.finalized = true;
+        let r = self.renderer.upgrade();
+
+        match r {
+            Some(renderer_strong_ref) => {
+                let mut renderer = <_ as Borrow<RefCell<Renderer>>>::borrow(&renderer_strong_ref)
+                                                                    .borrow_mut();
+
+                let graphics_device = renderer.graphics_device();
+
+                self.realm.dispose(graphics_device);
+            },
+            None => eprintln!("Can't retrieve renderer strong ref (from game loop)")
+        };
+    }
+}
+
+impl Drop for GameLoop {
+    fn drop(&mut self) {
+        self.finalize();
     }
 }
 

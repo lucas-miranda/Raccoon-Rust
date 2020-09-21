@@ -168,6 +168,9 @@ impl<L: 'static + GameLoopInterface> BackendEventLoop<L> for WinitEventLoop<L> {
                 winit::event::Event::RedrawRequested(_window_id) => {
                     game_loop.render();
                 },
+                winit::event::Event::LoopDestroyed => {
+                    game_loop.finalize();
+                },
                 _ => ()
             }
 

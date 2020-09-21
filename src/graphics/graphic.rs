@@ -1,4 +1,7 @@
-use super::Drawable;
+use crate::{
+    graphics::Drawable,
+    rendering::backends::ResourceDisposable
+};
 
-pub trait Graphic : Drawable {
+pub trait Graphic : Drawable + ResourceDisposable {
 }

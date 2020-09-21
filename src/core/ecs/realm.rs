@@ -32,6 +32,13 @@ use crate::{
     input::{
         InputEvent,
     },
+    rendering::{
+        backends::{
+            GraphicsDevice,
+            ResourceDisposable,
+            panic_if_resource_isnt_disposed
+        }
+    },
     window::{
         WindowEvent,
     }
@@ -41,7 +48,8 @@ pub struct Realm {
     pub(in crate::core) game_state: Weak<RefCell<GameState>>,
     systems: HashMap<String, AnySystem>,
     entities: Option<HashMap<EntityId, Entity>>,
-    next_entity_id: EntityId
+    next_entity_id: EntityId,
+    disposed: bool
 }
 
 impl EventListener<InputEvent> for Realm {
@@ -82,13 +90,45 @@ impl EventListener<WindowEvent> for Realm {
     }
 }
 
+impl ResourceDisposable for Realm {
+    fn is_disposed(&self) -> bool {
+        self.disposed
+    }
+
+    fn dispose(&mut self, device: &GraphicsDevice) {
+        if self.disposed {
+            return;
+        }
+
+        self.disposed = true;
+        match self.entities {
+            Some(ref mut entities) => {
+                for entity in entities.values_mut() {
+                    for component in entity.get_mut_components() {
+                        //println!("freeing resource from component '{:?}'", component);
+                        component.dispose(device);
+                    }
+                }
+            },
+            None => ()
+        }
+    }
+}
+
+impl Drop for Realm {
+    fn drop(&mut self) {
+        panic_if_resource_isnt_disposed!(self);
+    }
+}
+
 impl Realm {
     pub fn new() -> Realm {
         Realm {
             game_state: Weak::new(),
             systems: HashMap::new(),
             entities: Some(HashMap::new()),
-            next_entity_id: 0u64
+            next_entity_id: 0u64,
+            disposed: false
         }
     }
 

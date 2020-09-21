@@ -10,8 +10,19 @@ pub trait ResourceDisposable : Drop {
 #[macro_export]
 macro_rules! panic_if_resource_isnt_disposed {
     ($self:expr) => {
-        if !$self.disposed {
+        if !$self.is_disposed() {
             panic!("Managed resource hasn't been properly disposed.\nPlease, call dispose() at it!");
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! panic_if_resources_isnt_disposed {
+    ($resources:expr) => {
+        for resource in $resources {
+            if !resource.is_disposed() {
+                panic!("Managed resource hasn't been properly disposed.\nPlease, call dispose() at it!");
+            }
         }
     };
 }

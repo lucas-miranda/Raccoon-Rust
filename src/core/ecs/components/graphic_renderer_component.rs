@@ -13,11 +13,20 @@ use crate::{
         Drawable,
         Graphic
     },
-    rendering::Renderer
+    rendering::{
+        backends::{
+            GraphicsDevice,
+            ResourceDisposable,
+            panic_if_resource_isnt_disposed,
+            panic_if_resources_isnt_disposed
+        },
+        Renderer
+    }
 };
 
 pub struct GraphicRendererComponent {
-    graphics: Vec<Box<dyn Graphic>>
+    graphics: Vec<Box<dyn Graphic>>,
+    disposed: bool
 }
 
 impl Component for GraphicRendererComponent {
@@ -49,15 +58,36 @@ impl Drawable for GraphicRendererComponent {
     }
 }
 
+impl ResourceDisposable for GraphicRendererComponent {
+    fn is_disposed(&self) -> bool {
+        self.disposed
+    }
+
+    fn dispose(&mut self, device: &GraphicsDevice) {
+        if self.disposed {
+            return;
+        }
+
+        self.disposed = true;
+
+        for graphic in self.graphics.iter_mut() {
+            graphic.dispose(device);
+        }
+    }
+}
+
 impl Drop for GraphicRendererComponent {
     fn drop(&mut self) {
+        panic_if_resource_isnt_disposed!(self);
+        panic_if_resources_isnt_disposed!(self.graphics.iter());
     }
 }
 
 impl GraphicRendererComponent {
     pub fn new() -> GraphicRendererComponent {
         GraphicRendererComponent {
-            graphics: Vec::new()
+            graphics: Vec::new(),
+            disposed: false
         }
     }
 

@@ -19,6 +19,7 @@ pub use vulkan_backend::VulkanBackend as Backend;
 mod resource_disposable;
 pub use resource_disposable::ResourceDisposable;
 pub use panic_if_resource_isnt_disposed;
+pub use panic_if_resources_isnt_disposed;
 
 mod shader_bindings;
 pub use shader_bindings::ShaderBindings;

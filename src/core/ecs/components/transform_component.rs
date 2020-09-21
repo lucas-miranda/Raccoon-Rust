@@ -7,6 +7,10 @@ use crate::{
     },
     math::{
         Vector2
+    },
+    rendering::backends::{
+        GraphicsDevice,
+        ResourceDisposable
     }
 };
 
@@ -37,6 +41,20 @@ impl Updatable for TransformComponent {
     }
 
     fn late_update(&mut self) {
+    }
+}
+
+impl ResourceDisposable for TransformComponent {
+    fn is_disposed(&self) -> bool {
+        false
+    }
+
+    fn dispose(&mut self, device: &GraphicsDevice) {
+    }
+}
+
+impl Drop for TransformComponent {
+    fn drop(&mut self) {
     }
 }
 

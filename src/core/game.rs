@@ -75,11 +75,14 @@ impl<L: 'static + GameLoopInterface> Game<L> {
                                           .borrow_mut()
                                           .start();
 
-        // 
-
+        // run window event loop
         self.window
             .event_loop()
             .run(L::new(realm, Rc::downgrade(&renderer), Rc::downgrade(&self.game_state)));
+        
+        // dispose managed resources
+        // those which depends on renderer backend
+
 
         /*
         loop {

@@ -1,7 +1,14 @@
 use std::any::Any;
-use crate::core::ecs::{
-    components::Updatable,
-    Component
+
+use crate::{
+    core::ecs::{
+        components::Updatable,
+        Component
+    },
+    rendering::backends::{
+        ResourceDisposable,
+        GraphicsDevice
+    }
 };
 
 pub struct EmptyComponent {
@@ -25,5 +32,19 @@ impl Updatable for EmptyComponent {
     }
 
     fn late_update(&mut self) {
+    }
+}
+
+impl ResourceDisposable for EmptyComponent {
+    fn is_disposed(&self) -> bool {
+        false
+    }
+
+    fn dispose(&mut self, device: &GraphicsDevice) {
+    }
+}
+
+impl Drop for EmptyComponent {
+    fn drop(&mut self) {
     }
 }
