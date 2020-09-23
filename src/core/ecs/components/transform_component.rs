@@ -8,7 +8,7 @@ use crate::{
     math::{
         Vector2
     },
-    rendering::backends::{
+    rendering::{
         GraphicsDevice,
         ResourceDisposable
     }

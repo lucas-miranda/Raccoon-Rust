@@ -16,20 +16,21 @@ use gfx_hal::{
 
 use crate::{
     math::Size,
-    rendering::backends::{
-        Backend,
-        BackendInterface,
+    rendering::{
+        RendererBackend,
+        RendererBackendInterface,
         GraphicsDevice,
-        ResourceDisposable
+        ResourceDisposable,
+        panic_if_resource_isnt_disposed
     }
 };
 
-type GfxBackend = <Backend as BackendInterface>::InternalBackend;
+type InternalBackend = <RendererBackend as RendererBackendInterface>::InternalBackend;
 
 pub struct TextureBindings {
     data: image_handler::RgbaImage,
-    upload_buffer: ManuallyDrop<<GfxBackend as gfx_hal::Backend>::Buffer>,
-    upload_memory: Option<ManuallyDrop<<GfxBackend as gfx_hal::Backend>::Memory>>,
+    upload_buffer: ManuallyDrop<<InternalBackend as gfx_hal::Backend>::Buffer>,
+    upload_memory: Option<ManuallyDrop<<InternalBackend as gfx_hal::Backend>::Memory>>,
     size: Size<u32>,
     row_pitch: u32,
     image_stride: usize,
@@ -47,7 +48,7 @@ impl ResourceDisposable for TextureBindings {
         }
 
         self.disposed = true;
-        let device_handle = device.handle();
+        let device_handle = device.backend().device();
         device_handle.wait_idle().unwrap();
 
         unsafe {
@@ -75,8 +76,8 @@ impl TextureBindings {
         let (img_width, img_height) = rgba_data.dimensions();
         let kind = gfx_hal::image::Kind::D2(img_width as gfx_hal::image::Size, img_height as gfx_hal::image::Size, 1, 1);
 
-        let limits = device.limits();
-        let device_handle = device.handle();
+        let limits = device.backend().limits();
+        let device_handle = device.backend().device();
 
         let non_coherent_alignment = limits.non_coherent_atom_size as u64;
         let row_alignment_mask = limits.optimal_buffer_copy_pitch_alignment as u32 - 1;
@@ -103,12 +104,12 @@ impl TextureBindings {
         })
     }
 
-    pub fn copy_into_stagging_buffer(&mut self, memory_type_id: gfx_hal::MemoryTypeId, device: &GraphicsDevice) -> &<GfxBackend as gfx_hal::Backend>::Buffer {
+    pub fn copy_into_stagging_buffer(&mut self, memory_type_id: gfx_hal::MemoryTypeId, device: &GraphicsDevice) -> &<InternalBackend as gfx_hal::Backend>::Buffer {
         if let Some(_) = self.upload_memory {
             return &*self.upload_buffer;
         }
 
-        let device_handle = device.handle();
+        let device_handle = device.backend().device();
 
         let upload_buffer_requirements = unsafe {
             device_handle.get_buffer_requirements(&self.upload_buffer)

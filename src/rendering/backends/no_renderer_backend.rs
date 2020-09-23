@@ -1,7 +1,8 @@
 use enumflags2::BitFlags;
+
 use crate::{
     rendering::{
-        BackendInterface,
+        RendererBackendInterface,
         RenderingRequirements
     }
 };
@@ -11,11 +12,17 @@ pub struct NoBackend {
 
 impl NoBackend {
     pub fn new() -> Result<Self, &'static str> {
-        Ok(Self { })
+        Ok(Self { 
+        })
     }
 }
 
-impl BackendInterface for NoBackend {
+impl RendererBackendInterface for NoBackend {
+    type InternalBackend = ();
+    type TextureBindings = ();
+    type ShaderBindings = ();
+    type DeviceAdapterBackend = ();
+
     fn name() -> &'static str {
         "NoBackend"
     }

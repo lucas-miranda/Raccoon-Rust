@@ -5,16 +5,14 @@ use crate::{
         Texture
     },
     rendering::{
-        backends::{
-            Backend,
-            BackendInterface,
-            GraphicsDevice,
-            ResourceDisposable,
-            StandardVertex,
-            panic_if_resource_isnt_disposed
-        },
+        GraphicsDevice,
         Renderer,
-        RenderingRequirements
+        RendererBackend,
+        RendererBackendInterface,
+        RenderingRequirements,
+        ResourceDisposable,
+        StandardVertex,
+        panic_if_resource_isnt_disposed
     }
 };
 

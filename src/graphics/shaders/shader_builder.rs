@@ -8,9 +8,9 @@ use crate::{
     graphics::shaders::{
         Shader
     },
-    rendering::backends::{
-        BackendInterface,
-        GraphicsDevice
+    rendering::{
+        GraphicsDevice,
+        RendererBackendInterface
     }
 };
 

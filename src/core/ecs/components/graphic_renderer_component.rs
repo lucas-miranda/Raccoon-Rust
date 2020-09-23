@@ -14,13 +14,11 @@ use crate::{
         Graphic
     },
     rendering::{
-        backends::{
-            GraphicsDevice,
-            ResourceDisposable,
-            panic_if_resource_isnt_disposed,
-            panic_if_resources_isnt_disposed
-        },
-        Renderer
+        GraphicsDevice,
+        Renderer,
+        ResourceDisposable,
+        panic_if_resource_isnt_disposed,
+        panic_if_resources_isnt_disposed
     }
 };
 

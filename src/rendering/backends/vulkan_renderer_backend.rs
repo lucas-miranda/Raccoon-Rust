@@ -11,27 +11,29 @@ use crate::{
         Texture
     },
     rendering::{
-        backends::{
-            BackendInterface,
-            GraphicsDevice,
-            HalState,
-            VertexPosition,
-            VertexUV
-        },
-        RenderingRequirements
+        GraphicsDevice,
+        RendererBackend,
+        RendererBackendInterface,
+        RenderingRequirements,
+        VertexPosition,
+        VertexUV
     },
     window::Window
 };
 
-pub struct VulkanBackend {
-    hal_state: HalState
+use super::{
+    hal
+};
+
+pub struct VulkanRendererBackend {
+    hal_state: hal::State
 }
 
-impl VulkanBackend {
+impl VulkanRendererBackend {
     pub fn new<L: 'static + GameLoopInterface>(window: Option<&Window<L>>) -> Result<Self, &'static str> {
         let hal_state = match window {
             Some(w) => {
-                match HalState::new(w) {
+                match hal::State::new(w) {
                     Ok(state) => state,
                     Err(e) => {
                         panic!(format!("Can't create hal state.\n{}", e));
@@ -48,8 +50,11 @@ impl VulkanBackend {
     }
 }
 
-impl BackendInterface for VulkanBackend {
+impl RendererBackendInterface for VulkanRendererBackend {
     type InternalBackend = gfx_backend_vulkan::Backend;
+    type TextureBindings = hal::TextureBindings;
+    type ShaderBindings = hal::ShaderBindings;
+    type DeviceAdapterBackend = hal::DeviceAdapterBackend;
 
     fn name() -> &'static str {
         "Vulkan"

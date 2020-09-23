@@ -1,5 +1,4 @@
 
-
 pub trait VertexPosition<D> {
     fn position(&self) -> &D;
 }
@@ -7,6 +6,8 @@ pub trait VertexPosition<D> {
 pub trait VertexUV<D> {
     fn uv(&self) -> &D;
 }
+
+// default implementation
 
 pub struct StandardVertex {
     pub position: [f32; 2],

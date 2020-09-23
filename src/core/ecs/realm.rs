@@ -33,11 +33,9 @@ use crate::{
         InputEvent,
     },
     rendering::{
-        backends::{
-            GraphicsDevice,
-            ResourceDisposable,
-            panic_if_resource_isnt_disposed
-        }
+        GraphicsDevice,
+        ResourceDisposable,
+        panic_if_resource_isnt_disposed
     },
     window::{
         WindowEvent,

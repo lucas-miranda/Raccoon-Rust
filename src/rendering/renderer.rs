@@ -1,9 +1,4 @@
 use crate::{
-    /*
-    math::{
-        Triangle
-    },
-    */
     core::GameLoopInterface,
     graphics::{
         shaders::{
@@ -13,19 +8,17 @@ use crate::{
         Texture,
     },
     rendering::{
-        backends::{
-            Backend,
-            BackendInterface,
-            GraphicsDevice,
-            VertexPosition,
-            VertexUV
-        }
+        GraphicsDevice,
+        RendererBackend,
+        RendererBackendInterface,
+        VertexPosition,
+        VertexUV
     },
     window::Window
 };
 
 pub struct Renderer {
-    backend: Backend,
+    backend: RendererBackend,
     shader_builder: ShaderBuilder,
     default_shader: Shader
 }
@@ -33,10 +26,10 @@ pub struct Renderer {
 impl Renderer {
     pub fn new<L: 'static + GameLoopInterface>(window: Option<&Window<L>>) -> Result<Self, &'static str> {
         let backend = if cfg!(feature = "no-backend") {
-            Backend::new::<L>(None)?
+            RendererBackend::new::<L>(None)?
         } else {
             match window {
-                Some(w) => Backend::new(Some(w))?,
+                Some(w) => RendererBackend::new(Some(w))?,
                 None => return Err("Window reference not found")
             }
         };
@@ -51,7 +44,7 @@ impl Renderer {
         })
     }
 
-    pub fn get_backend(&self) -> &Backend {
+    pub fn get_backend(&self) -> &RendererBackend {
         &self.backend
     }
 

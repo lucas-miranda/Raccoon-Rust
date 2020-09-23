@@ -1,12 +1,14 @@
 use crate::{
-    rendering::backends::{
-        BackendInterface,
+    rendering::{
         GraphicsDevice,
+        RendererBackend,
+        RendererBackendInterface,
         ResourceDisposable,
-        ShaderBindings,
         panic_if_resource_isnt_disposed
     }
 };
+
+type ShaderBindings = <RendererBackend as RendererBackendInterface>::ShaderBindings;
 
 pub struct Shader {
     pub bindings: ShaderBindings,

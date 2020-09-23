@@ -7,9 +7,10 @@ use core::mem::{
 };
 
 use crate::{
-    rendering::backends::{
+    rendering::{
         GraphicsDevice,
-        TextureBindings,
+        RendererBackend,
+        RendererBackendInterface,
         ResourceDisposable,
         panic_if_resource_isnt_disposed
     }
@@ -18,6 +19,8 @@ use crate::{
 use crate::{
     math::Size
 };
+
+type TextureBindings = <RendererBackend as RendererBackendInterface>::TextureBindings;
 
 pub struct Texture {
     pub bindings: TextureBindings,

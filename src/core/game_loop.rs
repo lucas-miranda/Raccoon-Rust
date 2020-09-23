@@ -17,12 +17,10 @@ use crate::{
     },
     input::InputEvent,
     rendering::{
-        backends::{
-            GraphicsDevice,
-            ResourceDisposable,
-            panic_if_resource_isnt_disposed
-        },
+        GraphicsDevice,
         Renderer,
+        ResourceDisposable,
+        panic_if_resource_isnt_disposed
     },
     window::WindowEvent
 };

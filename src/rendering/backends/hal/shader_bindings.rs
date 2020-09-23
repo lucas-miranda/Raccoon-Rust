@@ -7,20 +7,22 @@ use gfx_hal::{
     pso
 };
 
-use super::{
-    Backend,
-    BackendInterface,
-    GraphicsDevice,
-    ResourceDisposable,
-    panic_if_resource_isnt_disposed
+use crate::{
+    rendering::{
+        GraphicsDevice,
+        RendererBackend,
+        RendererBackendInterface,
+        ResourceDisposable,
+        panic_if_resource_isnt_disposed
+    }
 };
 
-type GfxBackend = <Backend as BackendInterface>::InternalBackend;
+type InternalBackend = <RendererBackend as RendererBackendInterface>::InternalBackend;
 
 pub struct ShaderBindings {
     descriptors_set_layout: Vec::<pso::DescriptorSetLayoutBinding>,
     descriptors_pool: Vec::<pso::DescriptorRangeDesc>,
-    sampler: ManuallyDrop<<GfxBackend as gfx_hal::Backend>::Sampler>,
+    sampler: ManuallyDrop<<InternalBackend as gfx_hal::Backend>::Sampler>,
     disposed: bool
 }
 
@@ -35,7 +37,7 @@ impl ResourceDisposable for ShaderBindings {
         }
 
         self.disposed = true;
-        let device_handle = device.handle();
+        let device_handle = device.backend().device();
 
         unsafe {
             device_handle.destroy_sampler(ManuallyDrop::take(&mut self.sampler));
@@ -56,7 +58,7 @@ impl ShaderBindings {
             descriptors_pool: Vec::new(),
             sampler: ManuallyDrop::new(
                          unsafe {
-                             device.handle().create_sampler(
+                             device.backend().device().create_sampler(
                                  &gfx_hal::image::SamplerDesc::new(
                                      gfx_hal::image::Filter::Linear,
                                      gfx_hal::image::WrapMode::Clamp
@@ -69,7 +71,7 @@ impl ShaderBindings {
         }
     }
 
-    pub fn sampler(&self) -> &<GfxBackend as gfx_hal::Backend>::Sampler {
+    pub fn sampler(&self) -> &<InternalBackend as gfx_hal::Backend>::Sampler {
         &*self.sampler
     }
 }

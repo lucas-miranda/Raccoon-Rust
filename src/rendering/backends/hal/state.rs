@@ -62,8 +62,9 @@ use crate::{
     math::{
         Triangle
     },
-    rendering::backends::{
-        BackendInterface,
+    rendering::{
+        RendererBackend,
+        RendererBackendInterface,
         GraphicsDevice,
         VertexPosition,
         VertexUV
@@ -73,48 +74,52 @@ use crate::{
     }
 };
 
-type GfxBackend = <super::Backend as BackendInterface>::InternalBackend;
+use super::{
+    DeviceAdapterBackend
+};
 
-pub struct HalState {
-    instance: <GfxBackend as Backend>::Instance,
+type InternalBackend = <RendererBackend as RendererBackendInterface>::InternalBackend;
+
+pub struct State {
+    instance: <InternalBackend as Backend>::Instance,
     pub graphics_device: GraphicsDevice,
-    surface: ManuallyDrop<<GfxBackend as Backend>::Surface>,
+    surface: ManuallyDrop<<InternalBackend as Backend>::Surface>,
     format: format::Format,
-    queue_group: queue::family::QueueGroup<GfxBackend>,
+    queue_group: queue::family::QueueGroup<InternalBackend>,
     frames_in_flight: usize,
     dimensions: window::Extent2D,
     viewport: pso::Viewport,
     current_frame: u64,
 
     // descriptors
-    descriptor_set_layout: ManuallyDrop<<GfxBackend as Backend>::DescriptorSetLayout>,
-    descriptor_pool: ManuallyDrop<<GfxBackend as Backend>::DescriptorPool>,
-    descriptor_set: <GfxBackend as Backend>::DescriptorSet,
+    descriptor_set_layout: ManuallyDrop<<InternalBackend as Backend>::DescriptorSetLayout>,
+    descriptor_pool: ManuallyDrop<<InternalBackend as Backend>::DescriptorPool>,
+    descriptor_set: <InternalBackend as Backend>::DescriptorSet,
 
     // resources
-    submission_complete_semaphores: Vec<<GfxBackend as Backend>::Semaphore>,
-    submission_complete_fences: Vec<<GfxBackend as Backend>::Fence>,
-    command_pools: Vec<<GfxBackend as Backend>::CommandPool>,
-    command_buffers: Vec<<GfxBackend as Backend>::CommandBuffer>,
+    submission_complete_semaphores: Vec<<InternalBackend as Backend>::Semaphore>,
+    submission_complete_fences: Vec<<InternalBackend as Backend>::Fence>,
+    command_pools: Vec<<InternalBackend as Backend>::CommandPool>,
+    command_buffers: Vec<<InternalBackend as Backend>::CommandBuffer>,
 
     // vertex buffer
-    vertex_buffer: Option<ManuallyDrop<<GfxBackend as Backend>::Buffer>>,
-    vertex_buffer_memory: Option<ManuallyDrop<<GfxBackend as Backend>::Memory>>,
+    vertex_buffer: Option<ManuallyDrop<<InternalBackend as Backend>::Buffer>>,
+    vertex_buffer_memory: Option<ManuallyDrop<<InternalBackend as Backend>::Memory>>,
 
     // pass
-    render_pass: ManuallyDrop<<GfxBackend as Backend>::RenderPass>,
+    render_pass: ManuallyDrop<<InternalBackend as Backend>::RenderPass>,
 
     // pipeline
-    graphics_pipeline: Option<ManuallyDrop<<GfxBackend as Backend>::GraphicsPipeline>>,
-    pipeline_layout: Option<ManuallyDrop<<GfxBackend as Backend>::PipelineLayout>>,
+    graphics_pipeline: Option<ManuallyDrop<<InternalBackend as Backend>::GraphicsPipeline>>,
+    pipeline_layout: Option<ManuallyDrop<<InternalBackend as Backend>::PipelineLayout>>,
 
     // texture handlers
     loaded_texture_uid: u64
 }
 
-impl HalState {
+impl State {
     pub fn new<L: 'static + GameLoopInterface>(window: &Window<L>) -> Result<Self, &'static str> {
-        let instance = <GfxBackend as Backend>::Instance::create("App Name", 1)
+        let instance = <InternalBackend as Backend>::Instance::create("App Name", 1)
                                       .map_err(|_e| "Can't create backend instance")?;
 
         let mut surface = unsafe {
@@ -198,7 +203,7 @@ impl HalState {
             }
         ];
 
-        let immutable_samplers = Vec::<<GfxBackend as Backend>::Sampler>::new();
+        let immutable_samplers = Vec::<<InternalBackend as Backend>::Sampler>::new();
 
         let descriptor_set_layout = unsafe {
                 device.create_descriptor_set_layout(bindings, immutable_samplers)
@@ -356,7 +361,7 @@ impl HalState {
 
         Ok(Self {
             instance,
-            graphics_device: GraphicsDevice::new(device, adapter),
+            graphics_device: GraphicsDevice::new(DeviceAdapterBackend::new(device, adapter)),
             surface: ManuallyDrop::new(surface),
             format,
             queue_group,
@@ -394,7 +399,7 @@ impl HalState {
 
     pub fn draw_clear_frame(&mut self, color: [f32; 4]) {
         // setup
-        let device_handle = self.graphics_device.handle();
+        let device_handle = self.graphics_device.backend().device();
 
         let surface_image = unsafe {
             match self.surface.acquire_image(!0) {
@@ -543,7 +548,7 @@ impl HalState {
         };
 
         // record commands
-        let device_handle = self.graphics_device.handle();
+        let device_handle = self.graphics_device.backend().device();
         let command_buffer = &mut self.command_buffers[frame_index];
         unsafe {
             command_buffer.begin_primary(command::CommandBufferFlags::ONE_TIME_SUBMIT);
@@ -741,7 +746,7 @@ impl HalState {
     }
     */
 
-    fn prepare_surface_and_framebuffer(&mut self) -> (<<GfxBackend as Backend>::Surface as window::PresentationSurface<GfxBackend>>::SwapchainImage, <GfxBackend as Backend>::Framebuffer) {
+    fn prepare_surface_and_framebuffer(&mut self) -> (<<InternalBackend as Backend>::Surface as window::PresentationSurface<InternalBackend>>::SwapchainImage, <InternalBackend as Backend>::Framebuffer) {
         let surface_image = unsafe {
             match self.surface.acquire_image(!0) {
                 Ok((image, _)) => image,
@@ -749,7 +754,7 @@ impl HalState {
             }
         };
 
-        let device = self.graphics_device.handle();
+        let device = self.graphics_device.backend().device();
         let framebuffer = unsafe {
             device
                 .create_framebuffer(
@@ -768,7 +773,7 @@ impl HalState {
     }
 
     unsafe fn wait_at_fence(&mut self, frame_index: usize) {
-        let device = self.graphics_device.handle();
+        let device = self.graphics_device.backend().device();
         let fence = &self.submission_complete_fences[frame_index];
 
         device
@@ -796,7 +801,7 @@ impl HalState {
             return Ok(());
         }
 
-        let device = self.graphics_device.handle();
+        let device = self.graphics_device.backend().device();
 
         let vertex_shader_module = unsafe {
             device.create_shader_module(shader.vertex_data())
@@ -965,7 +970,7 @@ impl HalState {
     fn load_vertices<V, P, U>(&mut self, vertices: &[V]) -> MemoryTypeId where 
         V: VertexPosition<P> + VertexUV<U>
     {
-        let device = self.graphics_device.handle();
+        let device = self.graphics_device.backend().device();
         device.wait_idle().unwrap();
 
         unsafe {
@@ -984,7 +989,7 @@ impl HalState {
             }
         }
 
-        let adapter = self.graphics_device.adapter();
+        let adapter = self.graphics_device.backend().adapter();
         let memory_types = adapter.physical_device
                                   .memory_properties()
                                   .memory_types;
@@ -1060,7 +1065,7 @@ impl HalState {
         let texture_image_stride = texture.bindings.image_stride();
         let texture_upload_buffer = texture.bindings.copy_into_stagging_buffer(vertex_buffer_memory_type, &self.graphics_device);
 
-        let device = self.graphics_device.handle();
+        let device = self.graphics_device.backend().device();
         let mut image_object = ManuallyDrop::new(
             unsafe {
                 device.create_image(
@@ -1216,6 +1221,7 @@ impl HalState {
 
     fn get_memory_type(&self, requirements: &memory::Requirements, properties: memory::Properties) -> MemoryTypeId {
         self.graphics_device
+            .backend()
             .adapter()
             .physical_device
             .memory_properties()
@@ -1231,9 +1237,9 @@ impl HalState {
     }
 }
 
-impl core::ops::Drop for HalState {
+impl core::ops::Drop for State {
     fn drop(&mut self) {
-        let device = self.graphics_device.handle();
+        let device = self.graphics_device.backend().device();
         device.wait_idle().unwrap();
 
         unsafe {

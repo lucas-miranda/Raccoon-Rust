@@ -5,9 +5,9 @@ use crate::{
         components::Updatable,
         Component
     },
-    rendering::backends::{
-        ResourceDisposable,
-        GraphicsDevice
+    rendering::{
+        GraphicsDevice,
+        ResourceDisposable
     }
 };
 

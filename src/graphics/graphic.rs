@@ -1,6 +1,6 @@
 use crate::{
     graphics::Drawable,
-    rendering::backends::ResourceDisposable
+    rendering::ResourceDisposable
 };
 
 pub trait Graphic : Drawable + ResourceDisposable {

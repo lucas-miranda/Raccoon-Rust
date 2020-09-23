@@ -6,17 +6,18 @@ use crate::{
         Texture
     },
     rendering::{
-        backends::{
-            GraphicsDevice,
-            VertexPosition,
-            VertexUV
-        },
-        RenderingRequirements
+        GraphicsDevice,
+        RenderingRequirements,
+        VertexPosition,
+        VertexUV
     }
 };
 
-pub trait BackendInterface {
+pub trait RendererBackendInterface {
     type InternalBackend: gfx_hal::Backend;
+    type TextureBindings;
+    type ShaderBindings;
+    type DeviceAdapterBackend;
 
     fn name() -> &'static str;
     fn has_requirements(requirements: RenderingRequirements) -> bool;

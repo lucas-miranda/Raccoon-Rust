@@ -1,34 +1,16 @@
-mod backend_interface;
-pub use backend_interface::BackendInterface;
+mod renderer_backend_interface;
+pub use renderer_backend_interface::RendererBackendInterface;
 
 #[cfg(feature = "no-backend")]
-mod no_backend;
+mod no_renderer_backend;
 #[cfg(feature = "no-backend")]
-pub use no_backend::NoBackend as Backend;
+pub use no_renderer_backend::NoRendererBackend as RendererBackend;
 
 #[cfg(not(feature = "no-backend"))]
-mod halstate;
-#[cfg(not(feature = "no-backend"))] pub use halstate::HalState;
+pub mod hal;
 
 #[cfg(feature = "vulkan")]
-mod vulkan_backend;
+mod vulkan_renderer_backend;
 #[cfg(feature = "vulkan")]
-pub use vulkan_backend::VulkanBackend as Backend;
+pub use vulkan_renderer_backend::VulkanRendererBackend as RendererBackend;
 
-#[macro_use]
-mod resource_disposable;
-pub use resource_disposable::ResourceDisposable;
-pub use panic_if_resource_isnt_disposed;
-pub use panic_if_resources_isnt_disposed;
-
-mod shader_bindings;
-pub use shader_bindings::ShaderBindings;
-
-mod texture_bindings;
-pub use texture_bindings::TextureBindings;
-
-mod vertex;
-pub use vertex::*;
-
-mod graphics_device;
-pub use graphics_device::GraphicsDevice;

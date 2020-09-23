@@ -4,7 +4,7 @@ pub use crate::{
     core::ecs::{
         components::Updatable
     },
-    rendering::backends::{
+    rendering::{
         ResourceDisposable
     }
 };
