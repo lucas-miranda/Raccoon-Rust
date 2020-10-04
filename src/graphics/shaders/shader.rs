@@ -1,8 +1,10 @@
 use crate::{
     rendering::{
+        backend::{
+            RendererBackend,
+            RendererBackendInterface,
+        },
         GraphicsDevice,
-        RendererBackend,
-        RendererBackendInterface,
         ResourceDisposable,
         panic_if_resource_isnt_disposed
     }

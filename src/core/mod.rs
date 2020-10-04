@@ -13,4 +13,7 @@ mod game_loop;
 pub use game_loop::GameLoop;
 
 mod game_error;
-pub use game_error::GameError;
+pub use game_error::{
+    GameInitError,
+    GameRuntimeError
+};

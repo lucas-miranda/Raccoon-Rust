@@ -5,10 +5,12 @@ use crate::{
         Texture
     },
     rendering::{
+        backend::{
+            RendererBackend,
+            RendererBackendInterface,
+        },
         GraphicsDevice,
         Renderer,
-        RendererBackend,
-        RendererBackendInterface,
         RenderingRequirements,
         ResourceDisposable,
         StandardVertex,

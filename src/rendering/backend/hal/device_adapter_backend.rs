@@ -3,7 +3,7 @@ use gfx_hal::{
 };
 
 use crate::{
-    rendering::{
+    rendering::backend::{
         RendererBackend,
         RendererBackendInterface
     }

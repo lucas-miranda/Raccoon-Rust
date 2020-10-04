@@ -9,3 +9,10 @@ pub use texture_bindings::TextureBindings;
 
 mod state;
 pub use state::State;
+
+#[cfg(feature = "vulkan")]
+mod vulkan_renderer_backend;
+#[cfg(feature = "vulkan")]
+pub use vulkan_renderer_backend::VulkanRendererBackend as RendererBackend;
+
+pub mod error;

@@ -11,9 +11,14 @@ use crate::{
         Texture
     },
     rendering::{
+        backend::{
+            error::{
+                RendererBackendError
+            },
+            RendererBackend,
+            RendererBackendInterface
+        },
         GraphicsDevice,
-        RendererBackend,
-        RendererBackendInterface,
         RenderingRequirements,
         VertexPosition,
         VertexUV
@@ -22,27 +27,28 @@ use crate::{
 };
 
 use super::{
-    hal
+    error,
+    DeviceAdapterBackend,
+    ShaderBindings,
+    State,
+    TextureBindings
 };
 
 pub struct VulkanRendererBackend {
-    hal_state: hal::State
+    hal_state: State
 }
 
 impl VulkanRendererBackend {
-    pub fn new<L: 'static + GameLoopInterface>(window: Option<&Window<L>>) -> Result<Self, &'static str> {
+    pub fn new<L: 'static + GameLoopInterface>(window: Option<&Window<L>>) -> Result<Self, RendererBackendError> {
         let hal_state = match window {
             Some(w) => {
-                match hal::State::new(w) {
-                    Ok(state) => state,
-                    Err(e) => {
-                        panic!(format!("Can't create hal state.\n{}", e));
-                        return Err("Can't create hal state.");
-                    }
+                match State::new(w) {
+                    Ok(state) => Ok(state),
+                    Err(e) => Err(RendererBackendError::InternalBackend(e.into()))
                 }
             },
-            None => return Err("Missing window reference.")
-        };
+            None => Err(RendererBackendError::InvalidWindow)
+        }?;
 
         Ok(Self { 
             hal_state
@@ -52,9 +58,10 @@ impl VulkanRendererBackend {
 
 impl RendererBackendInterface for VulkanRendererBackend {
     type InternalBackend = gfx_backend_vulkan::Backend;
-    type TextureBindings = hal::TextureBindings;
-    type ShaderBindings = hal::ShaderBindings;
-    type DeviceAdapterBackend = hal::DeviceAdapterBackend;
+    type TextureBindings = TextureBindings;
+    type ShaderBindings = ShaderBindings;
+    type DeviceAdapterBackend = DeviceAdapterBackend;
+    type InternalBackendError = error::HalError;
 
     fn name() -> &'static str {
         "Vulkan"
@@ -76,9 +83,10 @@ impl RendererBackendInterface for VulkanRendererBackend {
         self.hal_state.draw_clear_frame(color)
     }
 
-    fn draw_texture_with_vertices<V, P, U>(&mut self, vertices: &[V], texture: &mut Texture, shader: &Shader) where 
+    fn draw_texture_with_vertices<V, P, U>(&mut self, vertices: &[V], texture: &mut Texture, shader: &Shader) -> Result<(), RendererBackendError> where 
         V: VertexPosition<P> + VertexUV<U>
     {
         self.hal_state.draw_texture_with_vertices(vertices, texture, shader)
+                      .map_err(|e| RendererBackendError::InternalBackend(e.into()))
     }
 }

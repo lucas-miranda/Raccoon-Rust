@@ -17,8 +17,10 @@ use gfx_hal::{
 use crate::{
     math::Size,
     rendering::{
-        RendererBackend,
-        RendererBackendInterface,
+        backend::{
+            RendererBackend,
+            RendererBackendInterface
+        },
         GraphicsDevice,
         ResourceDisposable,
         panic_if_resource_isnt_disposed

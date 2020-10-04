@@ -1,4 +1,3 @@
-
 pub trait VertexPosition<D> {
     fn position(&self) -> &D;
 }

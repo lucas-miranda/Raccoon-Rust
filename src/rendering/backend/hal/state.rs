@@ -63,9 +63,12 @@ use crate::{
         Triangle
     },
     rendering::{
-        RendererBackend,
-        RendererBackendInterface,
+        backend::{
+            RendererBackend,
+            RendererBackendInterface,
+        },
         GraphicsDevice,
+        ShaderStage,
         VertexPosition,
         VertexUV
     },
@@ -75,7 +78,12 @@ use crate::{
 };
 
 use super::{
-    DeviceAdapterBackend
+    DeviceAdapterBackend,
+    error::{
+        HalGraphicsPipelineError,
+        HalInitError,
+        HalRenderError,
+    }
 };
 
 type InternalBackend = <RendererBackend as RendererBackendInterface>::InternalBackend;
@@ -118,16 +126,13 @@ pub struct State {
 }
 
 impl State {
-    pub fn new<L: 'static + GameLoopInterface>(window: &Window<L>) -> Result<Self, &'static str> {
+    pub fn new<L: 'static + GameLoopInterface>(window: &Window<L>) -> Result<Self, HalInitError> {
         let instance = <InternalBackend as Backend>::Instance::create("App Name", 1)
-                                      .map_err(|_e| "Can't create backend instance")?;
+                           .map_err(|_e| HalInitError::UnsupportedBackend)?;
 
         let mut surface = unsafe {
             instance.create_surface(window)
-                    .map_err(|_e| {
-                        panic!("error: {}", _e);
-                        "Can't create surface using window."
-                    })?
+                    .map_err(|e| HalInitError::WindowHandle(e))?
         };
 
         let adapters = instance.enumerate_adapters();
@@ -143,34 +148,31 @@ impl State {
                                    .iter()
                                    .any(|qf| qf.queue_type().supports_graphics() && surface.supports_queue_family(qf))
                               })
-                              .ok_or("Couldn't find a graphical Adapter!")?;
+                              .ok_or(HalInitError::GraphicalAdapterNotFound)?;
 
         let (mut device, queue_group) = {
             let queue_family = adapter
                 .queue_families
                 .iter()
                 .find(|qf| qf.queue_type().supports_graphics() && surface.supports_queue_family(qf))
-                .ok_or("Couldn't find a QueueFamily with graphics!")?;
+                .ok_or(HalInitError::ExpectedQueueFamilyNotFound)?;
 
             let adapter::Gpu { device, mut queue_groups } = unsafe {
-                //let device_features = adapter.physical_device.features();
-                //println!("gpu enable features: {:?}", device_features);
-
                 adapter
                     .physical_device
                     .open(&[(queue_family, &[1.0])], gfx_hal::Features::empty())
-                    .map_err(|_| "Couldn't open the PhysicalDevice!")?
+                    .map_err(|e| HalInitError::Device(e))?
             };
 
             let queue_group = match queue_groups.iter().position(|qg| qg.family == queue_family.id()) {
-                Some(index) => queue_groups.remove(index),
-                None => panic!("Can't find a valid queue group.")
-            };
+                Some(index) => Ok(queue_groups.remove(index)),
+                None => Err(HalInitError::GpuQueueGroupNotFound)
+            }?;
 
             if queue_group.queues.len() > 0 {
                 Ok(())
             } else {
-                Err("The QueueGroup did not have any CommandQueues available!")
+                Err(HalInitError::GpuQueueGroupNotFound)
             }?;
 
             (device, queue_group)
@@ -179,7 +181,7 @@ impl State {
         let mut command_pool = unsafe { 
             device.create_command_pool(queue_group.family, pool::CommandPoolCreateFlags::empty()) 
         }
-        .expect("Can't create command pool");
+        .map_err(|e| HalInitError::CommandPoolCreation(e))?;
 
         // descriptors
         let bindings = vec![
@@ -208,7 +210,7 @@ impl State {
         let descriptor_set_layout = unsafe {
                 device.create_descriptor_set_layout(bindings, immutable_samplers)
         }
-        .expect("Can't create descrpitor set layout");
+        .map_err(|e| HalInitError::CommandPoolCreation(e))?;
 
         let desc = [
             pso::DescriptorRangeDesc {
@@ -233,13 +235,13 @@ impl State {
                     pso::DescriptorPoolCreateFlags::empty()
                 )
             }
-            .expect("Can't create descriptor pool")
+            .map_err(|e| HalInitError::CommandDescriptorPoolCreation(e))?
         );
 
         let descriptor_set = unsafe {
             descriptor_pool.allocate_set(&descriptor_set_layout)
         }
-        .unwrap();
+        .map_err(|e| HalInitError::AllocationDescriptorSetFromPool(e))?;
 
         let (extent, format, frames_in_flight) = {
             let capabilities = surface.capabilities(&adapter.physical_device);
@@ -280,8 +282,7 @@ impl State {
             println!("frames in flight: {}", frames_in_flight);
 
             unsafe { surface.configure_swapchain(&device, swapchain_config) }
-                            .expect("Failed to configure swapchain");
-
+                            .map_err(|e| HalInitError::SwapchainConfigureCreation(e))?;
 
             (extent, format, frames_in_flight)
         };
@@ -310,7 +311,7 @@ impl State {
                 unsafe {
                     device.create_render_pass(&[attachment], &[subpass], &[])
                 }
-                .expect("Can't create render pass!")
+                .map_err(|e| HalInitError::DeviceRenderPassCreation(e))?
             )
         };
 
@@ -325,7 +326,7 @@ impl State {
             unsafe {
                 command_pools.push(
                     device.create_command_pool(queue_group.family, pool::CommandPoolCreateFlags::empty())
-                          .expect("Can't create command pool")
+                          .map_err(|e| HalInitError::CommandPoolCreation(e))?
                 );
             }
         }
@@ -333,12 +334,12 @@ impl State {
         for i in 0..frames_in_flight {
             submission_complete_semaphores.push(
                 device.create_semaphore()
-                      .expect("Could not create semaphore")
+                      .map_err(|e| HalInitError::SemaphoreCreation(e))?
             );
 
             submission_complete_fences.push(
                 device.create_fence(true)
-                      .expect("Could not create fence")
+                      .map_err(|e| HalInitError::FenceCreation(e))?
             );
 
             command_buffers.push(
@@ -526,7 +527,7 @@ impl State {
         self.current_frame += 1;
     }
 
-    pub fn draw_texture_with_vertices<V, P, U>(&mut self, vertices: &[V], texture: &mut Texture, shader: &Shader) where
+    pub fn draw_texture_with_vertices<V, P, U>(&mut self, vertices: &[V], texture: &mut Texture, shader: &Shader) -> Result<(), HalRenderError> where
         V: VertexPosition<P> + VertexUV<U>
     {
         // load vertices
@@ -536,8 +537,7 @@ impl State {
         self.load_texture(texture, shader, vertex_buffer_memory_type);
 
         // prepare pipeline
-        self.create_pipeline::<V>(shader)
-            .unwrap();
+        self.create_pipeline::<V>(shader)?;
 
         // fetch surface and framebuffer
         let (surface_image, framebuffer) = self.prepare_surface_and_framebuffer();
@@ -550,6 +550,7 @@ impl State {
         // record commands
         let device_handle = self.graphics_device.backend().device();
         let command_buffer = &mut self.command_buffers[frame_index];
+
         unsafe {
             command_buffer.begin_primary(command::CommandBufferFlags::ONE_TIME_SUBMIT);
 
@@ -557,28 +558,27 @@ impl State {
             command_buffer.set_scissors(0, &[self.viewport.rect]);
 
             match self.graphics_pipeline {
-                Some(ref graphics_pipeline) => command_buffer.bind_graphics_pipeline(&*graphics_pipeline),
-                None => panic!("Missing graphics pipeline.")
-            };
-
+                Some(ref graphics_pipeline) => Ok(command_buffer.bind_graphics_pipeline(&*graphics_pipeline)),
+                None => Err(HalRenderError::MissingGraphicsPipeline)
+            }?;
 
             match self.vertex_buffer {
-                Some(vertex_buffer) => command_buffer.bind_vertex_buffers(
-                                               0,
-                                               once((*vertex_buffer, buffer::SubRange::WHOLE))
-                                           ),
-                None => panic!("Missing vertex buffer.")
-            }
+                Some(vertex_buffer) => Ok(command_buffer.bind_vertex_buffers(
+                                           0,
+                                           once((*vertex_buffer, buffer::SubRange::WHOLE))
+                                       )),
+                None => Err(HalRenderError::MissingVertexBuffer)
+            }?;
 
             match self.pipeline_layout {
-                Some(ref pipeline_layout) => command_buffer.bind_graphics_descriptor_sets(
-                                             &*pipeline_layout,
-                                             0,
-                                             once(&self.descriptor_set),
-                                             &[]
-                                         ),
-                None => panic!("Missing pipeline layout.")
-            }
+                Some(ref pipeline_layout) => Ok(command_buffer.bind_graphics_descriptor_sets(
+                                                 &*pipeline_layout,
+                                                 0,
+                                                 once(&self.descriptor_set),
+                                                 &[]
+                                             )),
+                None => Err(HalRenderError::MissingPipelineLayout)
+            }?;
 
             let clear_values = [
                 command::ClearValue {
@@ -633,6 +633,7 @@ impl State {
         };
 
         self.current_frame += 1;
+        Ok(())
     }
 
     /*
@@ -788,15 +789,7 @@ impl State {
     }
 
     #[allow(clippy::type_complexity)]
-    fn create_pipeline<V>(&mut self, shader: &Shader) -> Result<(), &'static str> {
-        /*
-        let mut builder = ShaderBuilder::new()?;
-        let shader = builder.shader_from_files(
-            "../../resources/shaders/basic_shader.vert", 
-            "../../resources/shaders/basic_shader.frag"
-        )?;
-        */
-
+    fn create_pipeline<V>(&mut self, shader: &Shader) -> Result<(), HalGraphicsPipelineError> {
         if let Some(_) = self.graphics_pipeline {
             return Ok(());
         }
@@ -805,12 +798,22 @@ impl State {
 
         let vertex_shader_module = unsafe {
             device.create_shader_module(shader.vertex_data())
-                  .map_err(|_| "Couldn't make the vertex module")?
+                  .map_err(|shader_error| {
+                      HalGraphicsPipelineError::ShaderModuleCreationFailed { 
+                          stage: ShaderStage::Vertex, 
+                          shader_error 
+                      }
+                  })?
         };
 
         let fragment_shader_module = unsafe {
             device.create_shader_module(shader.fragment_data())
-                  .map_err(|_| "Couldn't make the fragment module")?
+                  .map_err(|shader_error| {
+                      HalGraphicsPipelineError::ShaderModuleCreationFailed { 
+                          stage: ShaderStage::Fragment, 
+                          shader_error 
+                      }
+                  })?
         };
 
         let (pipeline_layout, gfx_pipeline) = {
@@ -929,7 +932,7 @@ impl State {
             let push_constants = vec![(pso::ShaderStageFlags::VERTEX, 0..8)];
             let layout = unsafe {
                 device.create_pipeline_layout(once(&*self.descriptor_set_layout), push_constants)
-                      .map_err(|_| "Couldn't create a pipeline layout")
+                      .map_err(|e| HalGraphicsPipelineError::PipelineLayoutCreationFailed(e))
             }?;
 
             let gfx_pipeline = {
@@ -949,8 +952,8 @@ impl State {
 
                 unsafe {
                     device.create_graphics_pipeline(&desc, None)
-                          .map_err(|_| "Couldn't create a graphics pipeline!")?
-                }
+                          .map_err(|e| HalGraphicsPipelineError::CreationError(e))
+                }?
             };
 
             (layout, gfx_pipeline)

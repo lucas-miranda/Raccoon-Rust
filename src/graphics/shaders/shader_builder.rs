@@ -6,11 +6,15 @@ use shaderc;
 
 use crate::{
     graphics::shaders::{
-        Shader
+        Shader,
+        ShaderBuildError,
+        ShaderBuilderInitError
     },
     rendering::{
-        GraphicsDevice,
-        RendererBackendInterface
+        backend::{
+            RendererBackendInterface
+        },
+        GraphicsDevice
     }
 };
 
@@ -19,27 +23,23 @@ pub struct ShaderBuilder {
 }
 
 impl ShaderBuilder {
-    pub fn new() -> Result<Self, &'static str> {
+    pub fn new() -> Result<Self, ShaderBuilderInitError> {
         let compiler = match shaderc::Compiler::new() {
-            Some(c) => c,
-            None => return Err("Shader compiler can't be created.")
-        };
+            Some(c) => Ok(c),
+            None => Err(ShaderBuilderInitError::CompilerCreation)
+        }?;
 
         Ok(Self {
             compiler
         })
     }
     
-    pub fn shader_from_files(&mut self, vertex_filepath: &str, fragment_filepath: &str, device: &GraphicsDevice) -> Result<Shader, &'static str> {
-        let vertex_contents = match fs::read_to_string(vertex_filepath) {
-            Ok(contents) => contents,
-            Err(e) => return Err("Can't read from vertex filepath.")
-        };
+    pub fn shader_from_files(&mut self, vertex_filepath: &str, fragment_filepath: &str, device: &GraphicsDevice) -> Result<Shader, ShaderBuildError> {
+        let vertex_contents = fs::read_to_string(vertex_filepath)
+                                 .map_err(|e| ShaderBuildError::VertexFileRead(e))?;
 
-        let fragment_contents = match fs::read_to_string(fragment_filepath) {
-            Ok(contents) => contents,
-            Err(e) => return Err("Can't read from fragment filepath.")
-        };
+        let fragment_contents = fs::read_to_string(fragment_filepath)
+                                   .map_err(|e| ShaderBuildError::FragmentFileRead(e))?;
 
         let vertex_artifact = self.compiler
             .compile_into_spirv(
@@ -49,7 +49,7 @@ impl ShaderBuilder {
                 "main",
                 None
             )
-            .map_err(|_e| "Couldn't compile vertex shader.")?;
+            .map_err(|e| ShaderBuildError::VertexCompilation(e))?;
 
         let fragment_artifact = self.compiler
             .compile_into_spirv(
@@ -59,7 +59,7 @@ impl ShaderBuilder {
                 "main",
                 None
             )
-            .map_err(|_e| "Couldn't compile fragment shader.")?;
+            .map_err(|e| ShaderBuildError::FragmentCompilation(e))?;
 
         Ok(Shader::new(
             vertex_artifact.as_binary().to_owned(),

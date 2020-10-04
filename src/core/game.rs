@@ -16,7 +16,8 @@ use crate::{
         GameLoop,
         GameLoopInterface,
         GameState,
-        GameError
+        GameInitError,
+        GameRuntimeError
     },
     rendering::Renderer,
     window::{
@@ -35,33 +36,37 @@ pub struct Game<L: GameLoopInterface = GameLoop> {
 }
 
 impl Game {
-    pub fn new() -> Result<Game<GameLoop>, GameError> {
+    pub fn new() -> Result<Game<GameLoop>, GameInitError> {
         let window = Window::default();
-        let renderer = Some(Renderer::new(Some(&window)).expect("Can't create a renderer."));
+        let renderer = Renderer::new(Some(&window))
+                                .map_err(|e| GameInitError::RendererCreation(e))?;
 
         Ok(Game { 
             game_state: Rc::new(RefCell::new(GameState::new())),
-            renderer,
+            renderer: Some(renderer),
             window
         })
     }
 }
 
 impl<L: 'static + GameLoopInterface> Game<L> {
-    pub fn with_custom_loop<T: 'static + GameLoopInterface>() -> Result<Game<T>, GameError> {
+    pub fn with_custom_loop<T: 'static + GameLoopInterface>() -> Result<Game<T>, GameInitError> {
         let window = Window::default();
-        let renderer = Some(Renderer::new(Some(&window)).expect("Can't create a renderer."));
+        let renderer = Renderer::new(Some(&window))
+                                .map_err(|e| GameInitError::RendererCreation(e))?;
 
         Ok(Game { 
             game_state: Rc::new(RefCell::new(GameState::new())),
-            renderer,
+            renderer: Some(renderer),
             window
         })
     }
 
-    pub fn run(&mut self, mut realm: Realm) {
+    pub fn run(&mut self, mut realm: Realm) -> Result<(), GameRuntimeError> {
         let renderer = Rc::new(RefCell::new(
-            self.renderer.take().expect("There is no renderer available.")
+            self.renderer
+                .take()
+                .ok_or(GameRuntimeError::RendererNotAvailable)?
         ));
 
         realm.game_state = Rc::downgrade(&self.game_state);
@@ -102,6 +107,8 @@ impl<L: 'static + GameLoopInterface> Game<L> {
             //realm.upkeep();
         }
         */
+
+        Ok(())
     }
 
     pub fn renderer(&self) -> &Option<Renderer> {
@@ -135,9 +142,4 @@ impl<L: 'static + GameLoopInterface> Game<L> {
         renderer.draw_triangle_frame(triangle)
     }
     */
-}
-
-impl<L: GameLoopInterface> Drop for Game<L> {
-    fn drop(&mut self) {
-    }
 }

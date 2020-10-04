@@ -1,6 +1,8 @@
 use super::{
-    RendererBackend,
-    RendererBackendInterface
+    backend::{
+        RendererBackend,
+        RendererBackendInterface
+    }
 };
 
 type DeviceAdapterBackend = <RendererBackend as RendererBackendInterface>::DeviceAdapterBackend;

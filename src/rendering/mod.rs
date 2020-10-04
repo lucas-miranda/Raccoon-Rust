@@ -1,14 +1,21 @@
-mod backends;
+pub mod backend;
+/*
 pub use backends::{
+    error::{
+        RendererBackendError,
+    },
     RendererBackend,
     RendererBackendInterface
 };
+*/
 
 mod graphics_device;
 pub use graphics_device::GraphicsDevice;
 
 mod renderer;
 pub use renderer::Renderer;
+
+pub mod error;
 
 #[macro_use]
 mod resource_disposable;
@@ -21,6 +28,9 @@ pub use rendering_requirements::RenderingRequirements;
 
 mod vertex;
 pub use vertex::*;
+
+mod shader_stage;
+pub use shader_stage::ShaderStage;
 
 // macros
 #[macro_export]
