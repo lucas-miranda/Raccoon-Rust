@@ -7,10 +7,17 @@ use core::mem::{
 };
 
 use crate::{
+    graphics::{
+        error::{
+            TextureError
+        }
+    },
     rendering::{
         backend::{
-            RendererBackend,
-            RendererBackendInterface,
+            error::{
+                TextureBindingsError
+            },
+            TextureBindings
         },
         GraphicsDevice,
         ResourceDisposable,
@@ -21,8 +28,6 @@ use crate::{
 use crate::{
     math::Size
 };
-
-type TextureBindings = <RendererBackend as RendererBackendInterface>::TextureBindings;
 
 pub struct Texture {
     pub bindings: TextureBindings,
@@ -52,11 +57,9 @@ impl Drop for Texture {
 }
 
 impl Texture {
-    pub fn from_file<P: AsRef<Path>>(filepath: P, device: &mut GraphicsDevice) -> Result<Self, &'static str> {
-        let bindings = match TextureBindings::with(filepath, device) {
-            Ok(b) => b,
-            Err(e) => return Err(e)
-        };
+    pub fn from_file<P: AsRef<Path>>(filepath: P, device: &mut GraphicsDevice) -> Result<Self, TextureError> {
+        let bindings = TextureBindings::with(filepath, device)
+                                       .map_err(|e| TextureError::Loading(e))?;
 
         Ok(Self {
             uid: device.next_texture_uid(),

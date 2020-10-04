@@ -10,3 +10,6 @@ pub use hal_init_error::HalInitError;
 mod hal_render_error;
 pub use hal_render_error::HalRenderError;
 
+mod hal_texture_bindings_error;
+pub use hal_texture_bindings_error::HalTextureBindingsError;
+

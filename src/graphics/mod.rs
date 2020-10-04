@@ -11,3 +11,5 @@ pub use image::Image;
 
 mod texture;
 pub use texture::Texture;
+
+pub mod error;

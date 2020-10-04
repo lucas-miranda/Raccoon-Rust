@@ -27,6 +27,12 @@ use crate::{
     }
 };
 
+use super::{
+    error::{
+        HalTextureBindingsError
+    }
+};
+
 type InternalBackend = <RendererBackend as RendererBackendInterface>::InternalBackend;
 
 pub struct TextureBindings {
@@ -70,9 +76,9 @@ impl Drop for TextureBindings {
 }
 
 impl TextureBindings {
-    pub fn with<P: AsRef<Path>>(filepath: P, device: &GraphicsDevice) -> Result<Self, &'static str> {
+    pub fn with<P: AsRef<Path>>(filepath: P, device: &GraphicsDevice) -> Result<Self, HalTextureBindingsError> {
         let dynamic_image = image_handler::open(filepath)
-                                          .map_err(|_e| "Failed to open image at path.")?;
+                                          .map_err(|e| HalTextureBindingsError::ImageLoading(e))?;
 
         let rgba_data = dynamic_image.to_rgba();
         let (img_width, img_height) = rgba_data.dimensions();
@@ -92,7 +98,7 @@ impl TextureBindings {
             unsafe {
                 device_handle.create_buffer(padded_upload_size, gfx_hal::buffer::Usage::TRANSFER_SRC)
             }
-            .unwrap()
+            .map_err(|e| HalTextureBindingsError::BufferCreation(e))?
         );
 
         Ok(Self {
